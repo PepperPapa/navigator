@@ -1,4 +1,4 @@
-﻿# python3.4
+﻿#!/usr/bin/python3.4
 # encap.py
 # 处理电表通信命令的封装及回显格式处理
 
@@ -6,7 +6,7 @@ import math
 import time
 import re
 import dl645
-import navWindow
+import navigator_window
 import log
 
 #全局变量

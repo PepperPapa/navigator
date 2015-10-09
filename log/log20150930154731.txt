@@ -1,0 +1,25 @@
+=======================================[2015-09-30 15:47:31]========================================
+:get address
+抄读通信地址为 11 11 11 11 11 11
+发:68 AA AA AA AA AA AA 68 13 00 DF 16
+收:68 11 11 11 11 11 11 68 93 06 44 44 44 44 44 44 67 16
+命令执行成功!
+Traceback (most recent call last):
+  File "__main__.py", line 9, in <module>
+    navigator_window.main()
+  File "E:\my_project\navigator\navigator_window.py", line 348, in main
+    navigator.root.mainloop()
+  File "C:\Python34\lib\tkinter\__init__.py", line 1120, in mainloop
+    self.tk.mainloop(n)
+KeyboardInterrupt
+Exception ignored in: <module 'threading' from 'C:\\Python34\\lib\\threading.py'>
+Traceback (most recent call last):
+  File "C:\Python34\lib\threading.py", line 1294, in _shutdown
+    t.join()
+  File "C:\Python34\lib\threading.py", line 1060, in join
+    self._wait_for_tstate_lock()
+  File "C:\Python34\lib\threading.py", line 1076, in _wait_for_tstate_lock
+    elif lock.acquire(block, timeout):
+KeyboardInterrupt
+Exception ignored in: <navigator_window.navWindow object at 0x01484690>
+AttributeError: 'navWindow' object has no attribute 'flush'

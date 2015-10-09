@@ -1,0 +1,17 @@
+=======================================[2015-10-09 16:06:27]========================================
+:get date	功能码:[04 00 01 01]
+抄读日期及星期为 2015-10-09 星期05
+发:68 11 11 11 11 11 11 68 11 04 34 34 33 37 1D 16
+收:68 11 11 11 11 11 11 68 91 08 34 34 33 37 38 3C 43 48 A0 16
+命令执行成功！
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "C:\Python34\lib\tkinter\__init__.py", line 1533, in __call__
+    return self.func(*args)
+  File "E:\my_project\navigator\navigator_window.py", line 169, in runCommand
+    psend(cmd)
+  File "E:\my_project\navigator\navigator_window.py", line 31, in psend
+    meter.anyCmd()
+  File "E:\my_project\navigator\encap_cmd.py", line 144, in anyCmd
+    self.send_format = "写日期及星期参数为 20%s-%s-%s 星期%s" % (set_date[0], set_date[1], set_date[2])
+TypeError: not enough arguments for format string
