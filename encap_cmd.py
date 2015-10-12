@@ -13,9 +13,12 @@ import navigator_window
 #全局变量
 ADDRESS = ["11","11","11","11","11","11"] #通信地址
 
+#命令封装正则表达式
 CMD_PATTERN = (r":get time|:set time \d{6}|"
                 ":get address|:set address \d{12}|"
-                ":get date|:set date \d{8}")
+                ":get date|:set date \d{8}|"
+                ":get demand 0[1-8],[0fF][0-8fF],0[0-9a-cA-C]|"
+                ":get energy [0-4][0-9a-fA-F],[0fF][0-8fF],0[0-9a-cA-C]")
 class encapCmd(object):
     """表计命令封装类
 
@@ -39,6 +42,8 @@ class encapCmd(object):
         self.send_format = "" #发送显示格式
         self.rec_frame = []  #返回帧
         self.rec_format = "" #接收信息显示格式
+        #当返回信息为数据块，表示数据块中数据项的长度列表
+        self.item_len = [] 
         self.result = "" #命令执行成功|无应答|异常应答及相应的错误信息
         self.pwd = ["00", "00", "00", "04"] #密码级别，默认04级
         self.opt = ["00", "00", "00", "01"] #操作者代码
@@ -144,6 +149,63 @@ class encapCmd(object):
             self.send_format = "写日期及星期参数为 20%s-%s-%s 星期%s" % \
                                  (set_date[0], set_date[1], set_date[2], set_date[3]) 
             self.rec_format = ""
+    
+        #抄读需量  :get demand xx,xx,xx  
+        #参数1：正向有功、反向有功、组合无功I、组合无功II、第1、2、3、4象限无功
+        #参数2：总，费率1、2、3、4、5、6、7、8，块
+        #参数3：本月，上1、2、3、4、5、6、7、8、9、10、11、12月
+        if ':get demand ' in self.cmd:
+            para = self.cmd.split()[2].split(',') #获取需量参数
+            dmd = dl645.getDmdEngItem(para)
+            self.code = ["11"]
+            self.data_len = ["04"]
+            self.fun_code = ["01"] + para
+            self.data = dl645.add33H(self.fun_code[::-1])
+            self.genFrame()
+            #数据块和非数据块分开返回
+            if not isinstance(dmd, list): #非数据块 
+                self.cmd_info = "%s\t功能码:[%s]" % (self.cmd, " ".join(self.fun_code))
+                self.send_format = "%s最大需量及发生时间\t" % dmd
+                self.rec_format = ("{0[12]}{0[13]}.{0[10]}{0[11]}{0[8]}{0[9]}"
+                            ",{0[22]}{0[23]}{0[20]}{0[21]}{0[18]}{0[19]}{0[16]}{0[17]}{0[14]}{0[15]}")
+            else:   #数据块
+                #关于数据块设计主要看两个参数
+                #sen_fmat有原来的字符串改为字符串list，返回结果如果判断是list类型就会认为是数据块抄读
+                #rec_fmat也为list数组，分别对应每一项的显示格式，这么做的目的是增加通用性，因为事件记
+                #录等块抄数据项每一项内容长度不一致;
+                #item_len 块抄新增list数组，分别代表块数据每一项的字符串长度，这么做的目的是增加通用性，
+                #因为事件记录等块抄数据项每一项内容长度不一致'''
+                self.cmd_info = "%s\t功能码:[%s]" % (self.cmd, " ".join(self.fun_code))
+                self.send_format = [item + "最大需量及发生时间\t" for item in dmd] #数据块对应的全部项目
+                #数据块每一项输出格式
+                self.rec_format = [("{0[4]}{0[5]}.{0[2]}{0[3]}{0[0]}{0[1]}"
+                            ",{0[14]}{0[15]}{0[12]}{0[13]}{0[10]}{0[11]}{0[8]}{0[9]}{0[6]}{0[7]}")]*9 
+                self.item_len = [16]*9  #数据块每一项对应的字符长度
+
+        #抄读电量 :get energy xx,xx,xx  
+        #参数1：正向有功、反向有功、组合无功I、组合无功II、第1、2、3、4象限无功
+        #参数2：总，费率1、2、3、4、5、6、7、8，块
+        #参数3：本月，上1、2、3、4、5、6、7、8、9、10、11、12月
+        if ':get energy ' in self.cmd:
+            para = self.cmd.split()[2].split(',') #获取需量参数
+            energy = dl645.getDmdEngItem(para)
+            self.code = ["11"]
+            self.data_len = ["04"]
+            self.fun_code = ["00"] + para
+            self.data = dl645.add33H(self.fun_code[::-1])
+            self.genFrame()
+            #数据块和非数据块分开返回
+            if not isinstance(energy, list): #非数据块 
+                self.cmd_info = "%s\t功能码:[%s]" % (self.cmd, " ".join(self.fun_code))
+                self.send_format = "%s电能\t" % energy
+                self.rec_format =  "{0[14]}{0[15]}{0[12]}{0[13]}{0[10]}{0[11]}.{0[8]}{0[9]}"
+            else:   
+                #处理同:get demand xx,xx,xx命令
+                self.cmd_info = "%s\t功能码:[%s]" % (self.cmd, " ".join(self.fun_code))
+                self.send_format = [item + "电能\t" for item in energy] #数据块对应的全部项目
+                #数据块每一项输出格式
+                self.rec_format =["{0[6]}{0[7]}{0[4]}{0[5]}{0[2]}{0[3]}.{0[0]}{0[1]}"]*9
+                self.item_len = [8]*9  #数据块每一项对应的字符长度
 
     def sendCmd(self):
         """发送表计帧信息到485并获取返回信息
@@ -160,13 +222,22 @@ class encapCmd(object):
             pass
 
     def getResponse(self):
-        """返回信息格式解析
+        """返回帧data域按返回格式解析
 
         """
         global ADDRESS
         if len(self.rec_frame) > 0:
-            self.rec_format = self.rec_format.format(
-                                "".join( dl645.minus33H( self.rec_frame[10:-2]))) 
+            if not isinstance(self.rec_format, list):
+                #说明：self.rec_format最终会表示按返回格式解析的数据
+                self.rec_format = self.rec_format.format(
+                                "".join(dl645.minus33H( self.rec_frame[10:-2]))) 
+            else: #数据块处理
+                data_area = dl645.minus33H(self.rec_frame[10:-2])
+                data_items = splitByLen("".join(data_area[4:]), self.item_len)
+                items = []
+                for i in range(len(data_items)):
+                    items.append(self.rec_format[i].format(data_items[i]))
+                self.rec_format = items
             self.result = "命令执行成功！"
             if self.cmd == ":get address":
                 self.addr = ADDRESS = dl645.minus33H(self.rec_frame[10:16])
@@ -190,10 +261,15 @@ class encapCmd(object):
             print("{:=^100}".format(operate_time))    
             if self.cmd_info:
                 print(self.cmd_info)
-            if self.send_format:
-                print(self.send_format)
-            if self.rec_format:
-                print(self.rec_format)
+            if not isinstance(self.rec_format, list):
+                if self.send_format:
+                    print(self.send_format)
+                if self.rec_format:
+                    print(self.rec_format)
+            else:
+                for i in range(len(self.rec_format)):
+                    print(self.send_format[i])
+                    print(self.rec_format[i])
             print("发:" + " ".join( self.frame ))
             print("收:" + " ".join( self.rec_frame))
             print(self.result)
