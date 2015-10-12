@@ -1,7 +1,0 @@
-Exception in Tkinter callback
-Traceback (most recent call last):
-  File "C:\Python34\lib\tkinter\__init__.py", line 1533, in __call__
-    return self.func(*args)
-  File "E:\my_project\navigator\navigator_window.py", line 162, in runCommand
-    meter.getCmd(command)
-NameError: name 'meter' is not defined

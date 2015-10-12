@@ -1,7 +1,0 @@
-:get time
-:get time
-:get time
-:get time
-:get time
-:get time
-:get time
