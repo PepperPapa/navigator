@@ -1,7 +1,7 @@
 ﻿#!/usr/bin/python3.4
 # Filename: navigator_window.py
 # Copyright zhongxin2506@outlook.com
-# 用户界面及事件处理程序 
+# 用户界面及事件处理程序
 
 from idlelib.Percolator import Percolator
 from idlelib.ColorDelegator import ColorDelegator
@@ -21,7 +21,7 @@ import script
 
 def psend(command):
     """用psend实现封装命令以脚本方式执行
-    
+
     如过和python脚本一起执行，需要执行表计封装命令，可以使用
     如下方式：
     for i in range(10):
@@ -41,7 +41,7 @@ class navWindow(object):
         """主界面的显示
 
         """
-        self.logfile_exist = False #指示是否已经创建日志文件 
+        self.logfile_exist = False #指示是否已经创建日志文件
         self.root = root = Tk()
         root.title("Navigator")
         root.geometry("800x550")
@@ -59,7 +59,7 @@ class navWindow(object):
         self.h_file = Menu(self.mBar, tearoff = 0)
         self.mBar.add_cascade(menu=self.h_file, label='帮助')
         # TODO(self.about): 待实现，暂用self.quit代替以避免出错
-        self.h_file.add_command(label="关于", command = self.quit)  
+        self.h_file.add_command(label="关于", command = self.quit)
         # TODO(self.help): 待实现，暂用self.quit代替以避免出错
         self.h_file.add_command(label="帮助", command = self.quit)
         root['menu'] = self.mBar
@@ -94,15 +94,15 @@ class navWindow(object):
         self.pane.add(self.in_fm)
         self.pane.pack(expand=YES, fill=BOTH)
         #输入区域脚本实现语法高亮显示
-        Percolator(self.in_txt).insertfilter(ColorDelegator()) 
+        Percolator(self.in_txt).insertfilter(ColorDelegator())
         #设置tag参数，当出现异常应答帧或无应答时打印红色进行提示
-        self.out_txt.tag_config("alarm", foreground = "red")  
+        self.out_txt.tag_config("alarm", foreground = "red")
         #程序首次运行即读取上一次保存的测试脚本文件
         self.in_txt.insert(1.0, script.read() )
         #Ctrl+Shift组合键执行电表封装命令，如:get time
-        self.in_txt.bind('<Control-Shift_R>', self.runCommand)  
+        self.in_txt.bind('<Control-Shift_R>', self.runCommand)
         #右键执行选中脚本
-        self.in_txt.bind('<Button-3>', self.popMenu)  
+        self.in_txt.bind('<Button-3>', self.popMenu)
         #输入区域弹出式菜单,命令输入区域选中要执行的一行或多行命令，右键可以直接执行
         self.popMenu = Menu(root, tearoff=0)
         self.popMenu.add_cascade(label='执行选中脚本', command=self.runScript)
@@ -116,7 +116,7 @@ class navWindow(object):
         self.timer = threading.Timer(1.0, self.update_time)
         self.timer.start()
         self.time_value.set(time_value)
-    
+
     def update_time(self):
         """新建线程，用于更新系统时间
 
@@ -124,11 +124,11 @@ class navWindow(object):
         time_value = time.strftime('%Y-%m-%d %H:%M:%S')
         self.time_value.set(time_value)
         self.timer = threading.Timer(1.0, self.update_time)
-        self.timer.start() 
+        self.timer.start()
 
     def open(self):
         """打开菜单命令
-        
+
         """
         scriptDirDlg(True, self)
 
@@ -137,7 +137,7 @@ class navWindow(object):
 
         """
         contents = self.in_txt.get(1.0, END)
-        script.save(contents) 
+        script.save(contents)
 
     def saveas(self):
         """另存为菜单命令
@@ -147,16 +147,16 @@ class navWindow(object):
 
     def runScript(self):
         """命令输入区域右键会执行选中的脚本，以脚本方式执行
-        
+
         """
         _script = self.in_txt.get(SEL_FIRST, SEL_LAST)  #光标选中区域的值
         #_script不为空则执行脚本
         if _script:
             exec(_script)
-    
+
     def runCommand(self, event):
         """执行表计封装命令
-        
+
         命令输入区域按Ctrl+Shift键按命令方式执行，
         1.首先看是否存在选中区域，如果有则按选中区域命令逐条执行；
         2.如果没有选中区域，则执行光标所在行的命令。
@@ -170,20 +170,20 @@ class navWindow(object):
 
     def popMenu(self, event):
         """弹出式菜单，仅在脚本输入text区域内点击右键有效
-        
+
         """
         self.popMenu.post(event.x_root, event.y_root)
-    
+
     def write(self, stream):
         """print或报错信息会打印到输出TEXT区域
-        
+
         """
-        if re.search(r'异常应答|无应答|错误', stream):
+        if re.search(r'异常应答|无应答|错误|返回帧格式异常', stream):
             #异常应答帧或无应答输出信息以红色字体输出已给出明显提示
-            self.out_txt.insert(END, stream, "alarm") 
+            self.out_txt.insert(END, stream, "alarm")
         else:
             self.out_txt.insert(END, stream )
-        self.out_txt.see(END) 
+        self.out_txt.see(END)
         self.out_txt.update()
 
         #记录日志
@@ -236,18 +236,18 @@ class scriptDirDlg(object):
         self.fname.grid(row = 6, column = 0, columnspan = 3, sticky = W+E+N+S)
         if open_or_saveas:
             self.btopen = Button(self.frm, text="打开", width = 10, command=self.open)
-            self.btopen.grid(row = 6, column = 4, columnspan = 3, sticky = W+E+N+S)          
+            self.btopen.grid(row = 6, column = 4, columnspan = 3, sticky = W+E+N+S)
         else:
             self.btsave = Button(self.frm, text="保存", width = 10, command=self.save)
             self.btsave.grid(row = 6, column = 4, columnspan = 3, sticky = W+E+N+S)
-    
+
     def updateFileName(self, event):
         """鼠标双击事件触发，将listbox中的选中文件名显示到文本框中以作提示
 
         """
         self.fname.delete(0, END)
         self.fname.insert(0, self.flist.get(ACTIVE) )
-        
+
     def open(self):
         """打开测试脚本文件到主窗口输入脚本text区域
 
@@ -260,13 +260,13 @@ class scriptDirDlg(object):
         self.parent.in_txt.insert(1.0, text)
         self.parent.in_txt.update()
         self.root.destroy()
-        
+
     def save(self):
         """另存测试脚本至硬盘指定目录
 
         """
         #获取输入区域的脚本信息
-        text = self.parent.in_txt.get(1.0, END) 
+        text = self.parent.in_txt.get(1.0, END)
         #读取另存为的文件名
         fname = self.fname.get() + '.txt'
         #以文件名保存脚本
@@ -331,7 +331,7 @@ class meterSettingDlg(object):
         dl645.METER_PARA['timeout'] = float( self.timeoutValue.get() )
         self.root.destroy()
 
- 
+
 
 def main():
     """主程序运行前必要的设置
@@ -341,7 +341,7 @@ def main():
     2.创建表计封装命令对象
     """
     navigator = navWindow()
-    global meter 
+    global meter
     meter = encapCmd()
     #保存默认stdout,stderr，以便需要的时候返回默认值
     #sys.save_in = sys.stdin
@@ -354,4 +354,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

@@ -1,9 +1,13 @@
 #! usr/bin/python3.4
+
+# 标准库
+import json
+
 import dl645
 
 cmd_lib = {
     # DI3 DI2 DI1 DI0
-    "cmd": ":get-enery 00 00 00 00",
+    "cmd": [':get-energy', '00', '01', '02', '03'],
     # TODO: 待解决输入命令的提取问题，暂时考虑以正则表达式的方式提取
     "cmd_rule": r'',
     # 定义匿名函数从cmd参数中提取所需参数数据
@@ -38,6 +42,7 @@ def getFrame(cmd):
     return fm + [cs] + cmd['frame']['end']
 
 if __name__ == '__main__':
+
     ### test code ###
     #发：68 11 11 11 11 11 11 68 11 04 33 33 33 33 17 16
     #收：68 11 11 11 11 11 11 68 91 08 33 33 33 33 68 39 33 33 A2 16

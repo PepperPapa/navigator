@@ -1,0 +1,14 @@
+s="E00200000007D0BC"
+b=list(s)
+for i in b:
+    print( "{:04b}".format( int(i,16) ) )
+
+
+
+
+
+
+
+
+
+
