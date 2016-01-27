@@ -96,7 +96,6 @@ class encapCmd(object):
             show_item_name = (show_item_name[int(self.cmd.split()[3][4:6]) - 1] +
                             "第" + str(int(self.cmd.split()[3][-2:], 16)) + "屏显示数据项")
             self.rec_format = (show_item_name +
-                        "抄读时间为 "
                         "{0[14]}{0[15]}{0[12]}{0[13]}{0[10]}{0[11]}{0[8]}{0[9]}"
                         ",{0[16]}{0[17]}")
 
