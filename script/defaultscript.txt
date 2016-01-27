@@ -1,3 +1,5 @@
 for i in range(10):
   psend(":raw 68 11 11 11 11 11 11 68 11 04 33 33 3E 33 22 16")
 
+:get show item 04040401
+

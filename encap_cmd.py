@@ -19,7 +19,8 @@ CMD_PATTERN = (r":get time|:set time \d{6}|"
                 ":get date|:set date \d{8}|"
                 ":get demand 0[1-8],[0fF][0-8fF],0[0-9a-cA-C]|"
                 ":get energy [0-4][0-9a-fA-F],[0fF][0-8fF],0[0-9a-cA-C]|"
-                ":raw(\s[\da-fA-F][\da-fA-F])+")
+                ":raw(\s[\da-fA-F][\da-fA-F])+|"
+                ":get show item 04040[1234]\d\d")
 class encapCmd(object):
     """表计命令封装类
 
@@ -81,6 +82,23 @@ class encapCmd(object):
         命令格式：
         :get XXX XXX  查询命令  第一个参数表示查询命令的含义，第二个参数表示需要附加的参数
         """
+        #读取循显、按键显示项  :get show item
+        if ':get show item' in self.cmd:
+            self.code = ["11"]
+            self.data_len = ["04"]
+            self.fun_code = dl645.splitByLen(self.cmd.split()[3],[2]*4)
+            self.data = dl645.add33H( self.fun_code[::-1])  #数据标识已按从高到底处理
+            self.genFrame()
+            self.cmd_info = "%s\t功能码:[%s]" % (self.cmd, " ".join(self.fun_code))
+            self.send_format = ""
+            show_item_name = ["自动循环", "按键循环", "自动循环(用户代码)",
+                            "按键循环(用户代码)"]
+            show_item_name = (show_item_name[int(self.cmd.split()[3][4:6]) - 1] +
+                            "第" + str(int(self.cmd.split()[3][-2:], 16)) + "屏显示数据项")
+            self.rec_format = (show_item_name +
+                        "抄读时间为 "
+                        "{0[14]}{0[15]}{0[12]}{0[13]}{0[10]}{0[11]}{0[8]}{0[9]}"
+                        ",{0[16]}{0[17]}")
 
         # 发送原始命令帧
         # 格式如 :raw 68 AA AA AA AA AA AA 68 13 00 DF 16
