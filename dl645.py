@@ -1,4 +1,4 @@
-#!/usr/bin/python3.4
+﻿#!/usr/bin/python3.4
 # Filename: dl645.py
 # Copyright zhongxin2506@outlook.com
 # 645协议相关的处理
@@ -172,7 +172,7 @@ def isValid(frame):
         return False
 
     #起始符、结束符错误直接返回None
-    if (frame[0] != '68') and (frame[7] != '68') and (frame[-1] != '16'):
+    if (frame[0] != '68') or (frame[7] != '68') or (frame[-1] != '16'):
         return False
 
     #数据域长度和实际数据域长度不符直接返回None
