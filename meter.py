@@ -25,6 +25,14 @@ def splitByLen(string, len_list):
     return new_list
 
 def formatArray(dataList, formatList):
+    """数组以指定的次序重新排序
+
+    dataList: 原list数组
+    formatList： 指定重牌次序的index list
+    如 datalist = ["01", "02", "03"]
+       formatList = [1, 2, 0]
+       则返回值为["02", "03", "01"]
+    """
     new_list = []
     for i in formatList:
         if i < len(dataList):
@@ -246,92 +254,111 @@ class Meter():
 
     def response(self):
         return self.rx
-        
+
+    def responseInfo(self):
+        """命令返回信息提取，正常应答、异常应答及相应的错误信息、无应答
+
+        """
+        if len(self.rx) == 0:
+            return "无应答..."
+        elif int(self.rx[8], 16) & 0xD0 == 0xD0:
+            result = "异常应答帧"
+            err = int(minus33H([self.rx[-3]])[0], 16)
+            if err & 0x01:
+                result += ">>其他错误"
+            if err & 0x02:
+                result += ">>无请求数据"
+            if err & 0x04:
+                result += ">>密码错/未授权"
+            if err & 0x08:
+                result += ">>通信速率不能更改"
+            if err & 0x10:
+                result += ">>年时区数超"
+            if err & 0x20:
+                result += ">>日时段数超"
+            if err & 0x40:
+                result += ">>费率数超"
+            return result
+        else:
+            return "操作成功!"
+    def responseData(self):
+        """提取返回帧中的数据信息并返回
+
+        返回值：以字符串数组形式返回
+        TODO: 解决数据的正负号显示问题
+        """
+        # 0-表示抄读命令、无参数  :get-xxxx
+        if self._getType() == 0:
+            data_area = minus33H(self.rx[10:-2])
+            data_split = splitByLen(data_area, self.protocol['rxFormat']['unit'])
+            result = []
+            for i in range(len(data_split)):
+                result.append(self.protocol['rxFormat']['style'][i]
+                              .format(*data_split[i][::-1]))
+            return result
+        # 1-表示抄读命令、有参数  :get-xxxx XXXXXXXX
+        elif self._getType() == 1:
+            data_area = minus33H(self.rx[10:-2])
+            data_split = splitByLen(data_area, self.protocol['rxFormat']['unit'])
+            result = []
+            for i in range(len(data_split)):
+                result.append(self.protocol['rxFormat']['style'][i]
+                              .format(*data_split[i][::-1]))
+            return result
+        # 2-表示抄读命令、有参数、有附加参数  :get-xxxx XXXXXXXX add-XXXXXXXX
+        elif self._getType() == 2:
+            data_area = minus33H(self.rx[10:-2])
+            result = []
+            temp = " ".join(data_area[7:-3]).split('AA')
+            for i in range(len(temp)):
+                temp[i] = (splitByLen(temp[i].split(),
+                            self.protocol['rxFormat']['unit'][i]))
+                for j in range(len(temp[i])):
+                    result.append(self.protocol['rxFormat']['style'][i][j]
+                                    .format(*temp[i][j][::-1]))
+            return result
+
+    def isValid(self):
+        """检查帧起始符、结束符、校验和，判断是否是有效帧
+
+        帧有效性检查项：
+            检查帧起始符、结束符、校验码是否是正确的值，
+        正确则报文有效，返回True，否则报文无效，返回False
+        """
+        #协议最短帧长为12字节，不足12字节直接返回None
+        if len(self.rx) < 12:
+            return False
+
+        #起始符、结束符错误直接返回None
+        if (self.rx[0] != '68') or (self.rx[7] != '68') or (self.rx[-1] != '16'):
+            return False
+
+        #数据域长度和实际数据域长度不符直接返回None
+        if int(self.rx[9], 16) != len(self.rx[10:-2]):
+            return False
+
+        #校验码错误直接返回None
+        if getCheckSum(self.rx[0:-2]) != [self.rx[-2]]:
+            return False
+        return True
+
+    def toPrint(self):
+        show = []
+        show.append()
+        show.append(self.getItemName())
+        show.append("发:" + " ".join(self.tx))
+        show.append("收:" + " ".join(self.rx))
+        show.append(self.responseInfo())
+        show.append("\n".join(self.responseData()))
+        return show
+
 if __name__ == '__main__':
 
     ### test code ###
     #发：68 11 11 11 11 11 11 68 11 04 33 33 33 33 17 16
     #收：68 11 11 11 11 11 11 68 91 08 33 33 33 33 68 39 33 33 A2 16
 
-    # # test code for self.buildFrame function
-    # # ===========:get-time command===========
-    # pt = lib645.CMDS[1]
-    # c1 = ":get-time"
-    # match = re.match(pt['rule'], c1).group()
-    # cmd = Meter(pt, c1)
-    # print(cmd.buildFrame())
-    # # ===========:get-energy command===========
-    # pt = lib645.CMDS[0]
-    # c1 = ":get-energy 00460000"
-    # match = re.match(pt['rule'], c1).group()
-    # cmd = Meter(pt, c1)
-    # print(cmd.buildFrame())
-    # # ===========:get-load-curve command===========
-    # pt = lib645.CMDS[2]
-    # c1 = ":get-load-curve 06000001 add-160305110003"
-    # match = re.match(pt['rule'], c1).group()
-    # cmd = Meter(pt, c1)
-    # print(cmd.buildFrame())
-
-    # # test code for self.getItemName function
-    # # ===========:get-energy command===========
-    # pt = lib645.CMDS[0]
-    # c1 = [":get-energy 00000000",
-    #       ":get-energy 00010101",
-    #       ":get-energy 00020202",
-    #       ":get-energy 00030303",
-    #       ":get-energy 00040404",
-    #       ":get-energy 00050505",
-    #       ":get-energy 00060606",
-    #       ":get-energy 00070707",
-    #       ":get-energy 00080808",
-    #       ":get-energy 0009FF09",
-    #       ":get-energy 000A060a",
-    #       ":get-energy 0015000B",
-    #       ":get-energy 0016000c",
-    #       ":get-energy 00170001",
-    #       ":get-energy 00180001",
-    #       ":get-energy 00190001",
-    #       ":get-energy 001A0001",
-    #       ":get-energy 001b0001",
-    #       ":get-energy 001c0001",
-    #       ":get-energy 001D0001",
-    #       ":get-energy 001E0001",
-    #       ":get-energy 00290001",
-    #       ":get-energy 002a0001",
-    #       ":get-energy 002b0001",
-    #       ":get-energy 002C0001",
-    #       ":get-energy 002D0001",
-    #       ":get-energy 002E0001",
-    #       ":get-energy 002f0001",
-    #       ":get-energy 00300001",
-    #       ":get-energy 00310001",
-    #       ":get-energy 00320001",
-    #       ":get-energy 003D0001",
-    #       ":get-energy 003E0001",
-    #       ":get-energy 003F0001",
-    #       ":get-energy 00400001",
-    #       ":get-energy 00410001",
-    #       ":get-energy 00420001",
-    #       ":get-energy 00430001",
-    #       ":get-energy 00440001",
-    #       ":get-energy 00450001",
-    #       ":get-energy 00460001"
-    #     ]
-    # for i in c1:
-    #     match = re.match(pt['rule'], i).group()
-    #     cmd = Meter(pt, i)
-    #     print(cmd.getItemName())
-
-    # # ===========:get-time command===========
-    # pt = lib645.CMDS[1]
-    # c1 = ":get-time"
-    # match = re.match(pt['rule'], c1).group()
-    # cmd = Meter(pt, c1)
-    # print(cmd.getItemName())
-
-    # ===========:set-time command===========
-    cmdin = ":get-energy 0000ff00"
+    cmdin = ":get-load-curve 06000000 add-01"
     matchCmdModel = None
     for item in lib645.CMDS:
         if re.match(item['rule'], cmdin):
@@ -339,41 +366,14 @@ if __name__ == '__main__':
             break
     if matchCmdModel:
         cmd = Meter(matchCmdModel, cmdin)
-        print(cmd.getItemName())
-        print(cmd.buildFrame())
+        cmd.buildFrame()
         rs = rs485.RS485()
         cmd.send(rs)
-        print(cmd.response())
-
-
-    # # ===========:get-load-curve command===========
-    # pt = lib645.CMDS[2]
-    # c1 = [":get-load-curve 06000000 add-02",
-    #       ":get-load-curve 06000001 add-160307100002",
-    #       ":get-load-curve 06000002",
-    #       ":get-load-curve 06010000 add-02",
-    #       ":get-load-curve 06010001 add-160307100002",
-    #       ":get-load-curve 06010002",
-    #       ":get-load-curve 06020000 add-02",
-    #       ":get-load-curve 06020001 add-160307100002",
-    #       ":get-load-curve 06020002",
-    #       ":get-load-curve 06030000 add-02",
-    #       ":get-load-curve 06030001 add-160307100002",
-    #       ":get-load-curve 06030002",
-    #       ":get-load-curve 06040000 add-02",
-    #       ":get-load-curve 06040001 add-160307100002",
-    #       ":get-load-curve 06040002",
-    #       ":get-load-curve 06050000 add-02",
-    #       ":get-load-curve 06050001 add-160307100002",
-    #       ":get-load-curve 06050002",
-    #       ":get-load-curve 06060000 add-02",
-    #       ":get-load-curve 06060001 add-160307100002",
-    #       ":get-load-curve 06060002"
-    #     ]
-    # for i in c1:
-    #     match = re.match(pt['rule'], i).group()
-    #     cmd = Meter(pt, i)
-    #     print(cmd.getItemName())
+        cmd.response()
+        if cmd.isValid():
+            show = cmd.toPrint()
+            for i in show:
+                print(i)
 
     # test code for function splitByLen
     # str = "1234567890"
@@ -382,6 +382,7 @@ if __name__ == '__main__':
     # print(splitByLen(str, [3, 4, 2, 9, 0]) == ['123', '4567', '89', '0'])
     # print(splitByLen(str, [3, 4, 2, 1, 10, 12]) == ['123', '4567', '89', '0'])
     # print("".join(splitByLen("45837813446281295381", [2]*10)[::-1]))
+    # print(splitByLen([['44', '48', '00']], [3]))
 
     # test code for function formatList
     # arry = ["电能","组合有功","总","(当前)"]

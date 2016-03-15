@@ -15,7 +15,7 @@ class RS485():
                           'bytesize': 8,
                           'stopbits': 1,
                           'parity': 'E',
-                          'timeout': 0.5
+                          'timeout': 1.5
                           }
         self.com = serial.Serial(self.parameter['port'],
                               self.parameter['baudrate'],
