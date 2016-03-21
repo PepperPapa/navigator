@@ -2,6 +2,7 @@
 
 import re
 import math
+import time
 
 # 本地模块
 import rs485
@@ -83,7 +84,7 @@ def getCheckSum(frame_list):
 
 # class defination
 class Meter():
-    def __init__(self, matchCmd, cmdin):
+    def __init__(self, matchCmd = {}, cmdin = ""):
         self.protocol = matchCmd
         self.pwd = "04000000"  # 密码 PA PA0 PA1 P2
         self.opcode = "01000000" # 操作者代码
@@ -101,7 +102,11 @@ class Meter():
         """
         self.cmd = cmdin.split()
 
-    def _getType(self):
+    def modifyCmd(self, matchCmd, cmdin):
+        self.protocol = matchCmd
+        self.cmd = cmdin.split()
+
+    def __getType(self):
         """获取封装命令的类型
 
         0-表示抄读命令、无参数  :get-xxxx
@@ -142,7 +147,7 @@ class Meter():
         :get-energy 00000000 表示抄读 (当前)组合有功总电能
         """
         # type=1或2表示封装命令包含参数或附加参数
-        if self._getType() == 1 or self._getType() == 2:
+        if self.__getType() == 1 or self.__getType() == 2:
             # 数据项名称从参数即self.cmd[1]中提取
             para_slice = (splitByLen(self.cmd[1],
                         self.protocol['txFormat']['slice']))
@@ -154,10 +159,10 @@ class Meter():
                                 self.protocol['txFormat']['order']))
             return "".join(item_name)
         # type=0表示封装命令不包含参数或附加参数
-        elif self._getType() == 0:
+        elif self.__getType() == 0:
             return self.protocol['txFormat']
         # type=3表示封装命令为设置命令
-        elif self._getType() == 3:
+        elif self.__getType() == 3:
             return self.protocol['txFormat']
 
     def buildFrame(self):
@@ -187,7 +192,7 @@ class Meter():
         new_frame.extend(['68'])
 
         # type=1表示封装命令包含参数
-        if self._getType() == 1:
+        if self.__getType() == 1:
             # 功能码: 11为抄读数据
             new_frame.extend(['11'])
             # 功能码: 数据域长度
@@ -196,7 +201,7 @@ class Meter():
             new_frame.extend(add33H(splitByLen(
                              self.cmd[1], [2] * 4)[::-1]))
         # type=1表示封装命令包含参数和附加参数
-        elif self._getType() == 2:
+        elif self.__getType() == 2:
             # 提取附加参数 add-XXXXXXXX, 如果附件参数长度不是偶数，则在最后一个
             # 参数前插入0，如 抄读负荷曲线时，附件参数可能为块数，抄读02块，用户
             # 使用时可以会省略那个0
@@ -215,7 +220,7 @@ class Meter():
             # 附加参数
             new_frame.extend(add33H(add_para[::-1]))
         # type等于0表示封装命令不包含参数或附加参数
-        elif self._getType() == 0:
+        elif self.__getType() == 0:
             # 功能码: 11为抄读数据
             new_frame.extend(['11'])
             # 功能码: 数据域长度
@@ -224,7 +229,7 @@ class Meter():
             new_frame.extend(add33H(splitByLen(
                              self.protocol['id'], [2] * 4)[::-1]))
         # type等于3表示封装命令为设置命令
-        elif self._getType() == 3:
+        elif self.__getType() == 3:
             # 功能码: 11为抄读数据
             new_frame.extend([self.protocol['code']])
             # 功能码: 数据域长度
@@ -288,7 +293,7 @@ class Meter():
         TODO: 解决数据的正负号显示问题
         """
         # 0-表示抄读命令、无参数  :get-xxxx
-        if self._getType() == 0:
+        if self.__getType() == 0:
             data_area = minus33H(self.rx[10:-2])
             data_split = splitByLen(data_area, self.protocol['rxFormat']['unit'])
             result = []
@@ -297,7 +302,7 @@ class Meter():
                               .format(*data_split[i][::-1]))
             return result
         # 1-表示抄读命令、有参数  :get-xxxx XXXXXXXX
-        elif self._getType() == 1:
+        elif self.__getType() == 1:
             data_area = minus33H(self.rx[10:-2])
             data_split = splitByLen(data_area, self.protocol['rxFormat']['unit'])
             result = []
@@ -306,7 +311,7 @@ class Meter():
                               .format(*data_split[i][::-1]))
             return result
         # 2-表示抄读命令、有参数、有附加参数  :get-xxxx XXXXXXXX add-XXXXXXXX
-        elif self._getType() == 2:
+        elif self.__getType() == 2:
             data_area = minus33H(self.rx[10:-2])
             result = []
             temp = " ".join(data_area[7:-3]).split('AA')
@@ -344,7 +349,6 @@ class Meter():
 
     def toPrint(self):
         show = []
-        show.append()
         show.append(self.getItemName())
         show.append("发:" + " ".join(self.tx))
         show.append("收:" + " ".join(self.rx))
@@ -352,28 +356,44 @@ class Meter():
         show.append("\n".join(self.responseData()))
         return show
 
+def stampTime():
+    print("{:=^80}".format(time.strftime("[%Y-%m-%d %H:%M:%S]")))
+
+def runCmd(command):
+    # 从命令封装库中匹配输入命令
+    matchCmdModel = None
+    for item in lib645.CMDS:
+        if re.match(item['rule'], command):
+            matchCmdModel = item
+            break
+
+    # 匹配成功
+    if matchCmdModel:
+        CMD.modifyCmd(matchCmdModel, command)
+        CMD.buildFrame()
+        CMD.send(RS)
+        CMD.response()
+        if CMD.isValid():
+            show = CMD.toPrint()
+            stampTime()
+            for line in show:
+                print(line)
+    else:
+        stampTime()
+        print("命令格式错误，请检查！！！")
+
+# 创建类Meter的全局对象，程序运行中只创建一个实例
+CMD = Meter()
+RS = rs485.RS485()
+
 if __name__ == '__main__':
 
     ### test code ###
     #发：68 11 11 11 11 11 11 68 11 04 33 33 33 33 17 16
     #收：68 11 11 11 11 11 11 68 91 08 33 33 33 33 68 39 33 33 A2 16
 
-    cmdin = ":get-load-curve 06000000 add-01"
-    matchCmdModel = None
-    for item in lib645.CMDS:
-        if re.match(item['rule'], cmdin):
-            matchCmdModel = item
-            break
-    if matchCmdModel:
-        cmd = Meter(matchCmdModel, cmdin)
-        cmd.buildFrame()
-        rs = rs485.RS485()
-        cmd.send(rs)
-        cmd.response()
-        if cmd.isValid():
-            show = cmd.toPrint()
-            for i in show:
-                print(i)
+    cmdin = ":get-time"
+    runCmd(cmdin)
 
     # test code for function splitByLen
     # str = "1234567890"
