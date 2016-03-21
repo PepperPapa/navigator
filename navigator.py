@@ -4,6 +4,7 @@ from tkinter import *
 from tkinter import filedialog
 
 import meter
+import log
 
 class Nav():
     def __init__(self, root):
@@ -85,6 +86,11 @@ class Nav():
         outputScrollbar.pack(side="left", fill=Y)
         self.outputText.config(yscrollcommand=outputScrollbar.set)
         outputScrollbar.config(command=self.outputText.yview)
+
+        # 输出结果格式化显示tag设置
+        self.outputText.tag_config("err", foreground="red")
+        self.outputText.tag_config("ok", foreground="green")
+
         return outputFm
 
     def makePopupMenu(self, event):
@@ -109,9 +115,25 @@ class Nav():
                 meter.runCmd(cmd)
 
     def write(self, stream):
-        self.outputText.insert(END, stream)
+        formatTags = []
+        if re.search(r'异常|无应答|错误', stream):
+            formatTags.append("err")
+        elif re.search(r'成功', stream):
+            formatTags.append("ok")
+
+        self.outputText.insert(END, stream, tuple(formatTags))
         self.outputText.see(END)
         self.outputText.update()
+
+        # 记录日志
+        # 在有log需要记录前才创建日志记录文件，调用write说明有日志需要记录，
+        # 避免没有任何日志也创建日志文件（0kB）
+        global isLogCreated
+        if isLogCreated == False:
+            global log_att
+            log_att = log.createLogFile()
+            isLogCreated = True
+        log.updateLogFile(log_att[0], log_att[1], stream)
 
 if __name__ == "__main__":
     root = Tk()
@@ -123,4 +145,5 @@ if __name__ == "__main__":
     #修改输入输出错误流指向navigator实例，打印信息通过navigator的write函数实现
     sys.stdout = nav
     sys.stderr = nav
+    isLogCreated = False
     mainloop()
