@@ -2,12 +2,14 @@
 
 from tkinter import *
 from tkinter import filedialog
+import os
 
 import meter
 import log
 
 class Nav():
     def __init__(self, root):
+        self.root = root
         self.makeMenu(root)
         toolsFm = Frame(root, bg="#dddddd", height=30)
         toolsFm.pack(side="top", fill="x")
@@ -23,10 +25,10 @@ class Nav():
     def makeMenu(self, root):
         mBar = Menu(root)
         menu_list = (
-            {"文件": [{"label": "打开", "cmd": self.test},
-                     {"label": "保存", "cmd": self.test},
-                     {"label": "另存为", "cmd": self.test},
-                     {"label": "退出", "cmd": self.test}
+            {"文件": [{"label": "打开", "cmd": self.openTestSuite},
+                     {"label": "保存", "cmd": self.saveTestSuite},
+                     {"label": "另存为", "cmd": self.saveasTestSuite},
+                     {"label": "退出", "cmd": self.quit}
                      ]
              },
             {"设置": [{"label": "电表通信参数", "cmd": self.test},
@@ -134,6 +136,39 @@ class Nav():
             log_att = log.createLogFile()
             isLogCreated = True
         log.updateLogFile(log_att[0], log_att[1], stream)
+
+    def quit(self):
+        self.root.destroy()
+
+    def openTestSuite(self):
+        openfilename = filedialog.askopenfilename(
+                        initialdir = os.getcwd())
+        f = open(openfilename)
+        try:
+            testsuite = f.read()
+        finally:
+            f.close
+        self.inputText.delete("1.0", "end")
+        self.inputText.insert("1.0", testsuite)
+
+    def saveTestSuite(self):
+        testsuite_dir = os.getcwd() + "\\testsuite"
+        testsuite = self.inputText.get("1.0", "end")
+        if not os.path.exists(testsuite_dir):
+            os.mkdir(testsuite_dir)
+        # 内容为空的情况测试实际获取的长度为1，因此大于1的情况表示输入区域有实际内容，
+        # 有内容才进行保存
+        if len(testsuite) > 1:
+            f = open( (testsuite_dir + "\default.py"), 'w')
+            f.write(testsuite)
+            f.close
+
+    def saveasTestSuite(self):
+        saveasfilename = filedialog.asksaveasfilename(initialdir = os.getcwd())
+        testsuite = self.inputText.get("1.0", "end")
+        f = open(saveasfilename + ".py", 'w')
+        f.write(testsuite)
+        f.close
 
 if __name__ == "__main__":
     root = Tk()
