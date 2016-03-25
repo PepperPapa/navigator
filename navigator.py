@@ -20,6 +20,10 @@ class Nav():
         pane.pack(side="top", expand=YES, fill=BOTH)
 
         statusFm = Frame(root, bg="#dddddd", height=30)
+        self.insertCursorPos = StringVar()
+        insertCurLabel = Label(statusFm, textvariable=self.insertCursorPos,
+                                fg="gray", bg="#dddddd", width=8)
+        insertCurLabel.pack(side="left", fill='y')
         statusFm.pack(side="bottom", fill="x")
 
     def makeMenu(self, root):
@@ -31,8 +35,8 @@ class Nav():
                      {"label": "退出", "cmd": self.quit}
                      ]
              },
-            {"设置": [{"label": "电表通信参数", "cmd": self.test},
-                     {"label": "台体通信参数", "cmd": self.test}
+            {"设置": [{"label": "电表通信参数", "cmd": self.pending},
+                     {"label": "台体通信参数", "cmd": self.pending}
                      ]
              },
              # 关于命令和脚本的区分：
@@ -40,11 +44,11 @@ class Nav():
              # 脚本:  指python脚本，表计封装脚本形式为psend(cmd),如psend(":get-time")
              {
              "运行": [{"label": "运行命令", "cmd": self.runCmd},
-                     {"label": "运行脚本", "cmd": self.test}
+                     {"label": "运行脚本", "cmd": self.pending}
                     ]
              },
-            {"帮助": [{"label": "关于", "cmd": self.test},
-                     {"label": "帮助", "cmd": self.test}
+            {"帮助": [{"label": "关于", "cmd": self.pending},
+                     {"label": "帮助", "cmd": self.pending}
                      ]
              }
         )
@@ -78,6 +82,17 @@ class Nav():
             self.popup.add_command(label=item["label"], command=item["cmd"])
         self.inputText.bind('<Button-3>', self.makePopupMenu)
 
+        # 跟踪插入光标的行列信息
+        self.inputText.bind('<KeyPress>', self.updateInsertPos)
+        self.inputText.bind('<Button-1>', self.updateInsertPos)
+
+        # 读取默认测试脚本
+        if os.path.exists(os.getcwd() + "\\testsuite\default.py"):
+            f = open(os.getcwd() + "\\testsuite\default.py")
+            testsuite = f.read()
+            f.close
+            self.inputText.insert("1.0", testsuite)
+
         return inputFm
 
     def makeOutputText(self, root):
@@ -98,8 +113,11 @@ class Nav():
     def makePopupMenu(self, event):
         self.popup.post(event.x_root, event.y_root)
 
-    def test(self, event):
-        print("do testing")
+    def pending(self, *event):
+        print("in pending...")
+
+    def updateInsertPos(self, *event):
+        self.insertCursorPos.set(':'.join(self.inputText.index(INSERT).split('.')))
 
     def runCmd(self, *event):
         """执行表计封装命令,如:get-time
@@ -118,7 +136,7 @@ class Nav():
 
     def write(self, stream):
         formatTags = []
-        if re.search(r'异常|无应答|错误', stream):
+        if re.search(r'异常|无应答|错误|失败', stream):
             formatTags.append("err")
         elif re.search(r'成功', stream):
             formatTags.append("ok")
@@ -143,13 +161,14 @@ class Nav():
     def openTestSuite(self):
         openfilename = filedialog.askopenfilename(
                         initialdir = os.getcwd())
-        f = open(openfilename)
-        try:
-            testsuite = f.read()
-        finally:
-            f.close
-        self.inputText.delete("1.0", "end")
-        self.inputText.insert("1.0", testsuite)
+        if len(openfilename) > 0:
+            f = open(openfilename)
+            try:
+                testsuite = f.read()
+            finally:
+                f.close
+            self.inputText.delete("1.0", "end")
+            self.inputText.insert("1.0", testsuite)
 
     def saveTestSuite(self):
         testsuite_dir = os.getcwd() + "\\testsuite"
@@ -165,10 +184,11 @@ class Nav():
 
     def saveasTestSuite(self):
         saveasfilename = filedialog.asksaveasfilename(initialdir = os.getcwd())
-        testsuite = self.inputText.get("1.0", "end")
-        f = open(saveasfilename + ".py", 'w')
-        f.write(testsuite)
-        f.close
+        if len(saveasfilename) > 0:
+            testsuite = self.inputText.get("1.0", "end")
+            f = open(saveasfilename + ".py", 'w')
+            f.write(testsuite)
+            f.close
 
 if __name__ == "__main__":
     root = Tk()

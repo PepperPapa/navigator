@@ -17,13 +17,7 @@ class RS485():
                           'parity': 'E',
                           'timeout': 1.5
                           }
-        self.com = serial.Serial(self.parameter['port'],
-                              self.parameter['baudrate'],
-                              parity=self.parameter['parity'],
-                              timeout=self.parameter['timeout'])
-        # 关闭端口的目的是防止独占端口导致其他工具如310无法使用该端口进行抄读
-        # 只在向485端口发送数据时才打开485端口
-        self.com.close()
+        self.com = None
         self.receive = []
 
     def _toInt(self, frame):
@@ -64,12 +58,26 @@ class RS485():
         self.com.setTimeout(settings['timeout'])
 
     def sendToCOM(self, frame):
-        self.com.open()
-        #向串口发送命令,发送命令到串口，write函数只能接收整数list类型参数
-        self.com.write(self._toInt(frame))
-        #读串口返回帧
-        self.receive = self.com.read(212)	  #根据645规定计算帧长最大不会超过212字节
-        self.com.close()
+        if not self.com:
+            try:
+                self.com = serial.Serial(self.parameter['port'],
+                                    self.parameter['baudrate'],
+                                    parity=self.parameter['parity'],
+                                    timeout=self.parameter['timeout'])
+            except:
+                print("打开串口" + self.parameter['port'] +
+                        "失败，请检查是否被占用!")
+        try:
+            if not self.com.isOpen():
+                self.com.open()
+            #向串口发送命令,发送命令到串口，write函数只能接收整数list类型参数
+            self.com.write(self._toInt(frame))
+            #读串口返回帧
+            self.receive = self.com.read(212)	  #根据645规定计算帧长最大不会超过212字节
+            self.com.close()
+        except:
+            print("打开串口" + self.parameter['port'] +
+                    "失败，请检查是否被占用!")
 
     def getFromCom(self):
         return self._bytesToFrame(self.receive)
