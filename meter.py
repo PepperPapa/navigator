@@ -132,7 +132,7 @@ class Meter():
         返回值: "010203040506"
         """
         # TODO: 先临时使用默认值，用于测试
-        self.addr = "111111111111"
+        self.addr = "121234345656"
         return self.addr
 
     def getPwd(self):

@@ -2,10 +2,17 @@
 
 from tkinter import *
 from tkinter import filedialog
+from threading import Thread
 import os
+import time
 
 import meter
 import log
+
+def showNowTime(now, delay):
+    while(1):
+        now.set(time.strftime('%Y-%m-%d %H:%M:%S'))
+        time.sleep(delay)
 
 class Nav():
     def __init__(self, root):
@@ -20,11 +27,22 @@ class Nav():
         pane.pack(side="top", expand=YES, fill=BOTH)
 
         statusFm = Frame(root, bg="#dddddd", height=30)
+        statusFm.pack(side="bottom", fill="x")
+
+        # 显示输入区域光标的line:column
         self.insertCursorPos = StringVar()
         insertCurLabel = Label(statusFm, textvariable=self.insertCursorPos,
-                                fg="gray", bg="#dddddd", width=8)
+                               fg="gray", bg="#dddddd", width=8)
         insertCurLabel.pack(side="left", fill='y')
-        statusFm.pack(side="bottom", fill="x")
+
+        # 实时显示当前系统时间
+        self.nowTime = StringVar()
+        nowTimeLabel = Label(statusFm, textvariable=self.nowTime,
+                             fg="gray", bg="#dddddd", width=18)
+        nowTimeLabel.pack(side="right", fill="y")
+        self.tTime = Thread(target=showNowTime, args=(self.nowTime, 1))
+        self.tTime.setDaemon(True)
+        self.tTime.start()
 
     def makeMenu(self, root):
         mBar = Menu(root)
