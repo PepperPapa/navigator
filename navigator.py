@@ -6,10 +6,12 @@ from tkinter import ttk
 from threading import Thread
 import os
 import time
+import re
 
 import meter
 import log
 import rs485
+import dut
 
 def showNowTime(now, delay):
     while(1):
@@ -155,11 +157,15 @@ class Nav():
             commands = [self.inputText.get('insert linestart', 'insert lineend')]
         for cmd in commands:
             if len(cmd) > 0:
-                meter.runCmd(cmd)
+                # 简单区分是台体命令还是表计命令，详细的校验在各自模块中完成
+                if re.match('^:dut-', cmd):
+                    dut.runCmd(cmd)
+                else:
+                    meter.runCmd(cmd)
 
     def write(self, stream):
         formatTags = []
-        if re.search(r'异常|无应答|错误|失败', stream):
+        if re.search(r'异常|无应答|错误|失败|关闭', stream):
             formatTags.append("err")
         elif re.search(r'成功', stream):
             formatTags.append("ok")

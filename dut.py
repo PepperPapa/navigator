@@ -1,30 +1,38 @@
 # !usr/bin/python3.4
-DUTLIB = [
-    {'cmdin': ':dut-set uaon', 'command': 'UAON\r'},
-    {'cmdin': ':dut-set uaoff', 'command': 'UAOF\r'},
-    {'cmdin': ':dut-set ubon', 'command': 'UBON\r'},
-    {'cmdin': ':dut-set uboff', 'command': 'UBOF\r'},
-    {'cmdin': ':dut-set ucon', 'command': 'UCON\r'},
-    {'cmdin': ':dut-set ucoff', 'command': 'UCOF\r'},
-    {'cmdin': ':dut-set iaon', 'command': 'IAON\r'},
-    {'cmdin': ':dut-set iaoff', 'command': 'IAOF\r'},
-    {'cmdin': ':dut-set ibon', 'command': 'IBON\r'},
-    {'cmdin': ':dut-set iboff', 'command': 'IBOF\r'},
-    {'cmdin': ':dut-set icon', 'command': 'ICON\r'},
-    {'cmdin': ':dut-set icoff', 'command': 'ICOF\r'},
-    {'cmdin': ':dut-set uion', 'command': 'UION\r'},
-    {'cmdin': ':dut-set uioff', 'command': 'UIOF\r'},
-    {'cmdin': ':dut-set uon', 'command': 'UON\r'},
-    {'cmdin': ':dut-set uoff', 'command': 'UOF\r'},
-    {'cmdin': ':dut-set ion', 'command': 'ION\r'},
-    {'cmdin': ':dut-set ioff', 'command': 'IOF\r'}
-]
+
+import rs485
+import meter
+import dutlib
+
 def toASCIIList(string):
     """字符串转换为ASCII码（int型）组成的数组
 
     """
-    return [ord(ch) for ch in string]
+    return ['{0:02X}'.format(ord(ch)) for ch in string]
+
+def matchCmd(cmdin):
+    """查找是否有和输入匹配的命令，有则返回匹配项，否则返回None
+
+    """
+    for item in dutlib.DUTLIB:
+        if cmdin == item['cmdin']:
+            return item
+    return None
+
+def runCmd(cmdin):
+    # step 1: 首先根据输入命令去查找是否有匹配的命令库
+    match_lib = matchCmd(cmdin)
+
+    # step 2：命令匹配的情况继续执行
+    if match_lib:
+        # step 3: 向串口发送命令
+        result = rs485.dRS.sendToCOM(toASCIIList(match_lib['command']))
+        # step 4: 串口执行未返回error则往下继续执行
+        if result != 'error':
+            meter.stampTime()
+            print(match_lib['cmdin'])
+            print(match_lib['info'])
 
 
 if __name__ == '__main__':
-    print(toASCIIList('UON\r'))
+    runCmd(':dut-set ioff')

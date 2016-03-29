@@ -67,9 +67,11 @@ class RS485():
             #读串口返回帧
             self.receive = self.com.read(212)	  #根据645规定计算帧长最大不会超过212字节
             self.com.close()
+            return self.receive
         except:
-            print("打开串口" + self.parameter['port'] +
-                    "失败，请检查是否被占用!")
+            print("{:!^60}".format("打开串口" + self.parameter['port'] +
+                                    "失败，请检查是否被占用!"))
+            return 'error'
 
     def getFromCom(self):
         return self._bytesToFrame(self.receive)

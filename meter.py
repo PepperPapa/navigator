@@ -254,8 +254,9 @@ class Meter():
         return new_frame
 
     def send(self, rs485):
-        rs485.sendToCOM(self.tx)
+        result = rs485.sendToCOM(self.tx)
         self.rx = rs485.getFromCom()
+        return result
 
     def response(self):
         return self.rx
@@ -361,24 +362,33 @@ def stampTime():
     print("{:=^80}".format(time.strftime("[%Y-%m-%d %H:%M:%S]")))
 
 def runCmd(command):
-    # 从命令封装库中匹配输入命令
+    """ TODO: 详细梳理运行流程
+
+    """
+    # step 1: 从命令封装库中查找是否有有匹配的命令
     matchCmdModel = None
     for item in lib645.CMDS:
         if re.match(item['rule'], command):
             matchCmdModel = item
             break
 
-    # 匹配成功
+    # step 2：匹配成功则执行命令
     if matchCmdModel:
         CMD.modifyCmd(matchCmdModel, command)
         CMD.buildFrame()
-        CMD.send(rs485.mRS)
-        CMD.response()
-        if CMD.isValid():
-            show = CMD.toPrint()
-            stampTime()
-            for line in show:
-                print(line)
+
+        # step 3：数据准备就绪后向串口发送命令
+        result = CMD.send(rs485.mRS)
+
+        # step 4: 串口未返回error则继续执行
+        if result != 'error':
+            CMD.response()
+            if CMD.isValid():
+                show = CMD.toPrint()
+                stampTime()
+                for line in show:
+                    print(line)
+    # step 2: 匹配不成功输出错误提示
     else:
         stampTime()
         print("命令格式错误，请检查！！！")
