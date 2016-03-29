@@ -17,7 +17,7 @@ def createLogFile():
     在程序文件目录下生成log文件夹用于存放日志文件
     log文件名格式为：log年月日时分秒.txt
     """
-    
+
     #(TODO(os.getcwd()): os.getcwd()获取的不一定是navigator程序路径，
     #而是当前cmd cd到的路径需要完善)
     log_dir = "%s\log\\" % os.getcwd()
@@ -29,8 +29,8 @@ def createLogFile():
     return (log_dir, log_name)
 
 def updateLogFile(file_path, file_name, content):
-    """向log文件写入输出信息
-    
+    """向log文件写入日志信息
+
     参数列表：
     file_path: log文件路径
     file_name: log文件名
@@ -45,4 +45,3 @@ if __name__ == '__main__':
     print(updateLogFile.__doc__)
     log1 = createLogFile()
     updateLogFile(log1[0], log1[1], "this a test string!\n"*5)
-
