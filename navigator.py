@@ -1,5 +1,8 @@
 # !usr/bin/python3.4
 
+from idlelib.Percolator import Percolator
+from idlelib.ColorDelegator import ColorDelegator
+from idlelib.textView import view_text
 from tkinter import *
 from tkinter import filedialog
 from tkinter import ttk
@@ -17,6 +20,13 @@ def showNowTime(now, delay):
     while(1):
         now.set(time.strftime('%Y-%m-%d %H:%M:%S'))
         time.sleep(delay)
+
+def psend(cmdin):
+    # 简单区分是台体命令还是表计命令，详细的校验在各自模块中完成
+    if re.match('^:dut-', cmdin):
+        dut.runCmd(cmdin)
+    else:
+        meter.runCmd(cmdin)
 
 class Nav():
     def __init__(self, root):
@@ -69,7 +79,7 @@ class Nav():
              # 脚本:  指python脚本，表计封装脚本形式为psend(cmd),如psend(":get-time")
              {
              "运行": [{"label": "运行命令", "cmd": self.runCmd},
-                     {"label": "运行脚本", "cmd": self.pending}
+                     {"label": "运行脚本", "cmd": self.runScript}
                     ]
              },
             {"帮助": [{"label": "关于", "cmd": self.pending},
@@ -96,11 +106,12 @@ class Nav():
         inputScrollbar.pack(side="left", fill=Y)
         self.inputText.config(yscrollcommand=inputScrollbar.set)
         inputScrollbar.config(command=self.inputText.yview)
+        Percolator(self.inputText).insertfilter(ColorDelegator())
         self.inputText.bind('<Control-Shift-B>', self.runCmd)
 
         # 右键弹出式菜单
         popupCmd = [{"label": "执行命令", "cmd": self.runCmd},
-                    {"label": "执行脚本", "cmd": self.runCmd}
+                    {"label": "执行脚本", "cmd": self.runScript}
                     ]
         self.popup = Menu(root, tearoff=0)
         for item in popupCmd:
@@ -151,17 +162,24 @@ class Nav():
         1.首先看是否存在选中区域，如果有则按选中区域命令逐条执行；
         2.如果没有选中区域，则执行光标所在行的命令。
         """
-        try:
-            commands = self.inputText.get(SEL_FIRST, SEL_LAST).split('\n')
-        except TclError:  # 如无选中区域会触发异常
+        commands = self.inputText.get(SEL_FIRST, SEL_LAST).split('\n')
+        # commands长度为1表示并没有选中区域，默认没选中区域测试长度为1
+        if (len(commands) <= 1):
             commands = [self.inputText.get('insert linestart', 'insert lineend')]
         for cmd in commands:
             if len(cmd) > 0:
-                # 简单区分是台体命令还是表计命令，详细的校验在各自模块中完成
-                if re.match('^:dut-', cmd):
-                    dut.runCmd(cmd)
-                else:
-                    meter.runCmd(cmd)
+                psend(cmd)
+
+    def runScript(self, *event):
+        """运行输入区域脚本
+
+        """
+        # 首先尝试执行选中的脚本
+        script = self.inputText.get(SEL_FIRST, SEL_LAST)
+        # script长度为1表示并没有选中区域，默认没选中区域测试长度为1
+        if (len(script) <= 1):
+            script = self.inputText.get('1.0', END)
+        exec(script)
 
     def write(self, stream):
         formatTags = []

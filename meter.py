@@ -383,6 +383,7 @@ def runCmd(command):
         # step 4: 串口未返回error则继续执行
         if result != 'error':
             CMD.response()
+            # TODO(zx): 这里需要优化，即使校验不合法也应输出相应的信息
             if CMD.isValid():
                 show = CMD.toPrint()
                 stampTime()
