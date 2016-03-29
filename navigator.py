@@ -2,12 +2,14 @@
 
 from tkinter import *
 from tkinter import filedialog
+from tkinter import ttk
 from threading import Thread
 import os
 import time
 
 import meter
 import log
+import rs485
 
 def showNowTime(now, delay):
     while(1):
@@ -44,6 +46,9 @@ class Nav():
         self.tTime.setDaemon(True)
         self.tTime.start()
 
+        # 规定同时只能打开一个参数设置窗口，通过该变量进行控制
+        self.isComsetDlgOpen = False
+
     def makeMenu(self, root):
         mBar = Menu(root)
         menu_list = (
@@ -53,8 +58,8 @@ class Nav():
                      {"label": "退出", "cmd": self.quit}
                      ]
              },
-            {"设置": [{"label": "电表通信参数", "cmd": self.pending},
-                     {"label": "台体通信参数", "cmd": self.pending}
+            {"设置": [{"label": "电表通信参数", "cmd": self.meterComSet},
+                     {"label": "台体通信参数",  "cmd": self.dutComSet}
                      ]
              },
              # 关于命令和脚本的区分：
@@ -208,6 +213,91 @@ class Nav():
             f.write(testsuite)
             f.close
 
+    def meterComSet(self):
+        if not self.isComsetDlgOpen:
+            ComsetDlg(self, "电表通信参数设置", rs485.mRS)
+        self.isComsetDlgOpen = True
+
+    def dutComSet(self):
+        if not self.isComsetDlgOpen:
+            ComsetDlg(self, "台体通信参数设置", rs485.dRS)
+        self.isComsetDlgOpen = True
+
+class ComsetDlg():
+    """通信参数设置对话框
+
+    """
+    def __init__(self, master, title, rs):
+        self.root = Toplevel()
+        self.root.resizable(False,False)
+        self.root.title(title)
+        self.root.geometry('+200+180')
+        self.master = master
+        self.rs = rs
+        self.settings = []
+
+        all_sets = {
+            'port': ['COM1', 'COM2', 'COM3', 'COM4', 'COM5'],
+            'baudrate': [300, 600, 1200, 2400, 4800, 9600, 19200],
+            'bytesize': [5, 6, 7, 8],
+            'stopbits': [1, 2],
+            'parity': ['O', 'E', 'N'],
+            'timeout': ['0.5', '1.5', '2', '2.5']
+        }
+        cur_set = rs.getParameter()
+        para_items = [{"串口:": [all_sets['port'],
+                                all_sets['port'].index(cur_set['port'])]},
+                    {"波特率:": [all_sets['baudrate'],
+                                all_sets['baudrate'].index(cur_set['baudrate'])]},
+                    {"数据位:":[all_sets['bytesize'],
+                                all_sets['bytesize'].index(cur_set['bytesize'])]},
+                    {"停止位:": [all_sets['stopbits'],
+                                all_sets['stopbits'].index(cur_set['stopbits'])]},
+                    {"校验方式:": [all_sets['parity'],
+                                all_sets['parity'].index(cur_set['parity'])]},
+                    {"超时时间:": [all_sets['timeout'],
+                                all_sets['timeout'].index(str(cur_set['timeout']))]}
+                    ]
+
+        item_nums = len(para_items)
+        for i in range(item_nums):
+            self.root.grid_rowconfigure(i, pad=5)
+            for k,v in para_items[i].items():
+                lb = Label(self.root, text=k, height=1, width=8)
+                lb.grid(row=i, column=0, sticky=NSEW)
+                lst = ttk.Combobox(self.root, width=24, values=v[0])
+                lst.grid(row=i, column=1, columnspan=3, sticky=NSEW)
+                lst.current(v[1])
+                self.settings.append(lst)
+
+        self.root.grid_rowconfigure(item_nums, pad=10)
+        btn_ok = Button(self.root, text="确定", width=8, height=1,
+                        command=self.ok)
+        btn_ok.grid(row=item_nums, column=0, columnspan=2)
+        btn_cancel = Button(self.root, text="取消", width=8, height=1,
+                        command=self.cancel)
+        btn_cancel.grid(row=item_nums, column=2, columnspan=2)
+
+        self.root.protocol('WM_DELETE_WINDOW', self.quit)
+
+    def ok(self):
+        comPara={}
+        comPara['port'] = self.settings[0].get()
+        comPara['baudrate'] = int(self.settings[1].get())
+        comPara['bytesize'] = int(self.settings[2].get())
+        comPara['stopbits'] = float(self.settings[3].get())
+        comPara['parity'] = self.settings[4].get()
+        comPara['timeout'] = float(self.settings[5].get())
+        self.rs.setParameter(comPara)
+        self.quit()
+
+    def cancel(self):
+        self.quit()
+
+    def quit(self):
+        self.master.isComsetDlgOpen = False
+        self.root.destroy()
+
 if __name__ == "__main__":
     root = Tk()
     root.title("navigator")
@@ -219,4 +309,5 @@ if __name__ == "__main__":
     sys.stdout = nav
     sys.stderr = nav
     isLogCreated = False
+
     mainloop()

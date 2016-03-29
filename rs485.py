@@ -9,16 +9,16 @@ import math
 import serial
 
 class RS485():
-    def __init__(self):
-        self.parameter = {'port': 'COM5',
-                          'baudrate': 2400,
-                          'bytesize': 8,
-                          'stopbits': 1,
-                          'parity': 'E',
-                          'timeout': 1.5
-                          }
-        self.com = None
+    def __init__(self, para={'port': 'COM5',
+                              'baudrate': 2400,
+                              'bytesize': 8,
+                              'stopbits': 1,
+                              'parity': 'E',
+                              'timeout': 1.5
+                              }):
+        self.parameter = para
         self.receive = []
+        self.isRSCreated = False
 
     def _toInt(self, frame):
         """将帧列表转发为串口可接受的整型list
@@ -39,36 +39,28 @@ class RS485():
         return ["{0:02X}".format(i) for i in receive]
 
     def getParameter(self):
-        settings = self.com.getSettingsDict()
-        return {
-            'port': self.com.port,
-            'baudrate': settings['baudrate'],
-            'bytesize': settings['bytesize'],
-            'stopbits': settings['stopbits'],
-            'parity': settings['parity'],
-            'timeout': settings['timeout']
-        }
+        return self.parameter
 
     def setParameter(self, settings):
-        self.com.setPort(settings['port'])
-        self.com.setBaudrate(settings['baudrate'])
-        self.com.setByteSize(settings['bytesize'])
-        self.com.setStopbits(settings['stopbits'])
-        self.com.setParity(settings['parity'])
-        self.com.setTimeout(settings['timeout'])
+        self.parameter = settings
+        # 程序只在需要发送数据时才创建和操作串口，避免不必要的异常发生
+        # isRSCreated设置为false的目的是下发发送数据前重新按设置新参数
+        self.isRSCreated = False
 
     def sendToCOM(self, frame):
-        if not self.com:
-            try:
-                self.com = serial.Serial(self.parameter['port'],
-                                    self.parameter['baudrate'],
-                                    parity=self.parameter['parity'],
-                                    timeout=self.parameter['timeout'])
-            except:
-                print("打开串口" + self.parameter['port'] +
-                        "失败，请检查是否被占用!")
+        """设计只有该方法允许真正的操作串口，其他方法不操作串口，避免额外的异常发生
+
+        """
         try:
-            if not self.com.isOpen():
+            if not self.isRSCreated:
+                self.com = serial.Serial(self.parameter['port'],
+                                self.parameter['baudrate'],
+                                bytesize=self.parameter['bytesize'],
+                                stopbits=self.parameter['stopbits'],
+                                parity=self.parameter['parity'],
+                                timeout=self.parameter['timeout'])
+                self.isRSCreated = True
+            else:
                 self.com.open()
             #向串口发送命令,发送命令到串口，write函数只能接收整数list类型参数
             self.com.write(self._toInt(frame))
@@ -82,13 +74,31 @@ class RS485():
     def getFromCom(self):
         return self._bytesToFrame(self.receive)
 
+# 表计通信串口对象
+mRS = RS485({'port': 'COM5',
+              'baudrate': 2400,
+              'bytesize': 8,
+              'stopbits': 1,
+              'parity': 'E',
+              'timeout': 1.5
+              })
+# 台体通信串口对象
+dRS = RS485({'port': 'COM1',
+              'baudrate': 9600,
+              'bytesize': 8,
+              'stopbits': 1,
+              'parity': 'N',
+              'timeout': 1.5
+              })
+
 if __name__ == '__main__':
     # test code
     rs485 = RS485()
-    rs485.sendToCOM("68 45 45 45 45 45 45 68 11 04 33 33 33 33 4F 16".split())
-    print(rs485.getFromCom())
     print(rs485.getParameter())
-    rs485.setParameter({'port': 'COM2',
+    rs485.sendToCOM("68 56 56 34 34 12 12 68 11 04 33 33 33 33 4F 16".split())
+    print(rs485.getFromCom())
+    print(rs485.com)
+    rs485.setParameter({'port': 'COM5',
                       'baudrate': 1200,
                       'bytesize': 7,
                       'stopbits': 2,

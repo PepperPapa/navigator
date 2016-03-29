@@ -372,7 +372,7 @@ def runCmd(command):
     if matchCmdModel:
         CMD.modifyCmd(matchCmdModel, command)
         CMD.buildFrame()
-        CMD.send(RS)
+        CMD.send(rs485.mRS)
         CMD.response()
         if CMD.isValid():
             show = CMD.toPrint()
@@ -385,7 +385,6 @@ def runCmd(command):
 
 # 创建类Meter的全局对象，程序运行中只创建一个实例
 CMD = Meter()
-RS = rs485.RS485()
 
 if __name__ == '__main__':
 
@@ -393,8 +392,13 @@ if __name__ == '__main__':
     #发：68 11 11 11 11 11 11 68 11 04 33 33 33 33 17 16
     #收：68 11 11 11 11 11 11 68 91 08 33 33 33 33 68 39 33 33 A2 16
 
-    cmdin = ":get-time"
-    runCmd(cmdin)
+    # cmdin = ":get-time"
+    # runCmd(cmdin)
+
+    for i in range(10):
+        cmdin = ":get-energy 00010000"
+        runCmd(cmdin)
+        time.sleep(1)
 
     # test code for function splitByLen
     # str = "1234567890"
