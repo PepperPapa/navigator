@@ -179,11 +179,17 @@ class Nav():
         # script长度为1表示并没有选中区域，默认没选中区域测试长度为1
         if (len(script) <= 1):
             script = self.inputText.get('1.0', END)
+        # 脚本执行在新建的线程中工作，放置延时等阻塞语句影响程序正常运行
+        sp = Thread(target=self.run, args=(script,))
+        sp.setDaemon(True)
+        sp.start()
+
+    def run(self, script):
         exec(script)
 
     def write(self, stream):
         formatTags = []
-        if re.search(r'异常|无应答|错误|失败|关闭', stream):
+        if re.search(r'非法|异常|无应答|错误|失败|关闭', stream):
             formatTags.append("err")
         elif re.search(r'成功', stream):
             formatTags.append("ok")

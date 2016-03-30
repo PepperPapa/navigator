@@ -82,7 +82,30 @@ def getCheckSum(frame_list):
     #计算的校验和并格式化为16进制字符串数组返回
     return ["{0:02X}".format(int(math.fmod(sum(copy[:]), 256)))]
 
-# class defination
+def isValid(frame):
+    """检查帧起始符、结束符、校验和，判断是否是有效帧
+
+    帧有效性检查项：
+        检查帧起始符、结束符、校验码是否是正确的值，
+    正确则报文有效，返回True，否则报文无效，返回False
+    """
+    #协议最短帧长为12字节，不足12字节直接返回None
+    if len(frame) < 12:
+        return False
+
+    #起始符、结束符错误直接返回None
+    if (frame[0] != '68') or (frame[7] != '68') or (frame[-1] != '16'):
+        return False
+
+    #数据域长度和实际数据域长度不符直接返回None
+    if int(frame[9], 16) != len(frame[10:-2]):
+        return False
+
+    #校验码错误直接返回None
+    if getCheckSum(frame[0:-2]) != [frame[-2]]:
+        return False
+    return True
+
 class Meter():
     def __init__(self, matchCmd = {}, cmdin = ""):
         self.protocol = matchCmd
@@ -325,37 +348,17 @@ class Meter():
                                     .format(*temp[i][j][::-1]))
             return result
 
-    def isValid(self):
-        """检查帧起始符、结束符、校验和，判断是否是有效帧
-
-        帧有效性检查项：
-            检查帧起始符、结束符、校验码是否是正确的值，
-        正确则报文有效，返回True，否则报文无效，返回False
-        """
-        #协议最短帧长为12字节，不足12字节直接返回None
-        if len(self.rx) < 12:
-            return False
-
-        #起始符、结束符错误直接返回None
-        if (self.rx[0] != '68') or (self.rx[7] != '68') or (self.rx[-1] != '16'):
-            return False
-
-        #数据域长度和实际数据域长度不符直接返回None
-        if int(self.rx[9], 16) != len(self.rx[10:-2]):
-            return False
-
-        #校验码错误直接返回None
-        if getCheckSum(self.rx[0:-2]) != [self.rx[-2]]:
-            return False
-        return True
-
     def toPrint(self):
         show = []
         show.append(self.getItemName())
         show.append("发:" + " ".join(self.tx))
         show.append("收:" + " ".join(self.rx))
         show.append(self.responseInfo())
-        show.append("\n".join(self.responseData()))
+
+        if isValid(self.rx):
+            show.append("\n".join(self.responseData()))
+        elif len(self.rx) > 0:
+            show.append("接收帧格式非法!")
         return show
 
 def stampTime():
@@ -383,12 +386,10 @@ def runCmd(command):
         # step 4: 串口未返回error则继续执行
         if result != 'error':
             CMD.response()
-            # TODO(zx): 这里需要优化，即使校验不合法也应输出相应的信息
-            if CMD.isValid():
-                show = CMD.toPrint()
-                stampTime()
-                for line in show:
-                    print(line)
+            show = CMD.toPrint()
+            stampTime()
+            for line in show:
+                print(line)
     # step 2: 匹配不成功输出错误提示
     else:
         stampTime()

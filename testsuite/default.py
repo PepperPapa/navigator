@@ -1,7 +1,6 @@
-for i in range(1):
-  psend(":get-time")
-  psend(":dut-set ioff")
-  time.sleep(10)
-  psend(":dut-set ion")
-  time.sleep(10)
+for i in range(100):
+  print("test")
+  time.sleep(2)
 
+
+print("anothre thread")
