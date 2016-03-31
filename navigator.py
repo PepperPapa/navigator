@@ -332,9 +332,11 @@ if __name__ == "__main__":
     root = Tk()
     root.title("navigator")
     nav = Nav(root)
+
     #保存默认stdout,stderr，以便需要的时候返回默认值
     sys.save_out = sys.stdout
     sys.save_err = sys.stderr
+
     #修改输入输出错误流指向navigator实例，打印信息通过navigator的write函数实现
     sys.stdout = nav
     sys.stderr = nav
