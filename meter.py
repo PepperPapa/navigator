@@ -109,8 +109,10 @@ def isValid(frame):
 class Meter():
     def __init__(self, matchCmd = {}, cmdin = ""):
         self.protocol = matchCmd
-        self.pwd = "04000000"  # 密码 PA PA0 PA1 P2
-        self.opcode = "01000000" # 操作者代码
+        # 密码 PA PA0 PA1 P2
+        self.pwd = "04000000"
+        # 操作者代码
+        self.opcode = "01000000"
         """ 提取输入的命令信息：命令名称、参数、附加参数
 
         举例：
@@ -126,6 +128,7 @@ class Meter():
         self.cmd = cmdin.split()
 
     def modifyCmd(self, matchCmd, cmdin):
+        # self.protocol为匹配的协议封装模板
         self.protocol = matchCmd
         self.cmd = cmdin.split()
 
@@ -155,7 +158,7 @@ class Meter():
         返回值: "010203040506"
         """
         # TODO: 先临时使用默认值，用于测试
-        self.addr = "121234345656"
+        self.addr = "338981000003"
         return self.addr
 
     def getPwd(self):
@@ -167,26 +170,10 @@ class Meter():
     def getItemName(self):
         """解析输入命令的数据项名称并返回
 
-        :get-energy 00000000 表示抄读 (当前)组合有功总电能
+        如:get-energy 00000000 表示抄读 (当前)组合有功总电能
         """
-        # type=1或2表示封装命令包含参数或附加参数
-        if self.__getType() == 1 or self.__getType() == 2:
-            # 数据项名称从参数即self.cmd[1]中提取
-            para_slice = (splitByLen(self.cmd[1],
-                        self.protocol['txFormat']['slice']))
-            item_name_slice = []
-            for i in range(len(self.protocol['txFormat']['item'])):
-                item_name_slice.append((self.protocol['txFormat']['item'][i]
-                                        [para_slice[i].upper()]))
-            item_name = (formatArray(item_name_slice,
-                                self.protocol['txFormat']['order']))
-            return "".join(item_name)
-        # type=0表示封装命令不包含参数或附加参数
-        elif self.__getType() == 0:
-            return self.protocol['txFormat']
-        # type=3表示封装命令为设置命令
-        elif self.__getType() == 3:
-            return self.protocol['txFormat']
+        if self.protocol['type'] == 1:
+            return eval(self.protocol['txInfo'])(self.cmd[1])
 
     def buildFrame(self):
         """生成发送帧
@@ -317,36 +304,9 @@ class Meter():
         返回值：以字符串数组形式返回
         TODO: 解决数据的正负号显示问题
         """
-        # 0-表示抄读命令、无参数  :get-xxxx
-        if self.__getType() == 0:
-            data_area = minus33H(self.rx[10:-2])
-            data_split = splitByLen(data_area, self.protocol['rxFormat']['unit'])
-            result = []
-            for i in range(len(data_split)):
-                result.append(self.protocol['rxFormat']['style'][i]
-                              .format(*data_split[i][::-1]))
-            return result
-        # 1-表示抄读命令、有参数  :get-xxxx XXXXXXXX
-        elif self.__getType() == 1:
-            data_area = minus33H(self.rx[10:-2])
-            data_split = splitByLen(data_area, self.protocol['rxFormat']['unit'])
-            result = []
-            for i in range(len(data_split)):
-                result.append(self.protocol['rxFormat']['style'][i]
-                              .format(*data_split[i][::-1]))
-            return result
-        # 2-表示抄读命令、有参数、有附加参数  :get-xxxx XXXXXXXX add-XXXXXXXX
-        elif self.__getType() == 2:
-            data_area = minus33H(self.rx[10:-2])
-            result = []
-            temp = " ".join(data_area[7:-3]).split('AA')
-            for i in range(len(temp)):
-                temp[i] = (splitByLen(temp[i].split(),
-                            self.protocol['rxFormat']['unit'][i]))
-                for j in range(len(temp[i])):
-                    result.append(self.protocol['rxFormat']['style'][i][j]
-                                    .format(*temp[i][j][::-1]))
-            return result
+        data_area = minus33H(self.rx[10:-2])
+        if self.protocol['type'] == 1:
+            return eval(self.protocol['rxInfo'])(data_area)
 
     def toPrint(self):
         show = []
@@ -371,7 +331,7 @@ def runCmd(command):
     # step 1: 从命令封装库中查找是否有有匹配的命令
     matchCmdModel = None
     for item in lib645.CMDS:
-        if re.match(item['rule'], command):
+        if re.match(item['pattern'], command):
             matchCmdModel = item
             break
 
@@ -397,6 +357,8 @@ def runCmd(command):
 
 # 创建类Meter的全局对象，程序运行中只创建一个实例
 CMD = Meter()
+# 创建模块lib645定义的类ID的实例
+id = lib645.Id()
 
 if __name__ == '__main__':
 
@@ -404,28 +366,20 @@ if __name__ == '__main__':
     #发：68 11 11 11 11 11 11 68 11 04 33 33 33 33 17 16
     #收：68 11 11 11 11 11 11 68 91 08 33 33 33 33 68 39 33 33 A2 16
 
-    # cmdin = ":get-time"
-    # runCmd(cmdin)
+    # for i in range(10):
+    #     cmdin = ":get-energy 00010000"
+    #     runCmd(cmdin)
+    #     time.sleep(1)
 
-    for i in range(10):
-        cmdin = ":get-energy 00010000"
-        runCmd(cmdin)
-        time.sleep(1)
+    command = ":get-energy 000aFf0C"
+    # step 1: 从命令封装库中查找是否有有匹配的命令
+    matchCmdModel = None
+    for item in lib645.CMDS:
+        if re.match(item['pattern'], command):
+            matchCmdModel = item
+            break
 
-    # test code for function splitByLen
-    # str = "1234567890"
-    # print(splitByLen(str, [3, 4, 2, 1]) == ['123', '4567', '89', '0'])
-    # print(splitByLen(str, [3, 4, 2]) == ['123', '4567', '89'])
-    # print(splitByLen(str, [3, 4, 2, 9, 0]) == ['123', '4567', '89', '0'])
-    # print(splitByLen(str, [3, 4, 2, 1, 10, 12]) == ['123', '4567', '89', '0'])
-    # print("".join(splitByLen("45837813446281295381", [2]*10)[::-1]))
-    # print(splitByLen([['44', '48', '00']], [3]))
-
-    # test code for function formatList
-    # arry = ["电能","组合有功","总","(当前)"]
-    # print(arry == ['电能', '组合有功', '总', '(当前)'])
-    # print(formatArray(arry, [3, 1, 2, 0]) == ['(当前)', '组合有功', '总', '电能'])
-    # print(formatArray(arry, [3, 1]) == ['(当前)', '组合有功'])
-    # print(formatArray(arry, [3, 1, 4, 2, 0, 100]) == ['(当前)', '组合有功', '总', '电能'])
-    # arry2 = ["时间"]
-    # print(formatArray(arry2, [0]) == ["时间"])
+    # step 2：匹配成功则执行命令
+    if matchCmdModel:
+        CMD.modifyCmd(matchCmdModel, command)
+        print(CMD.getItemName())
