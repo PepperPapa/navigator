@@ -78,11 +78,11 @@ class RS485():
 
 # 表计通信串口对象
 mRS = RS485({'port': 'COM5',
-              'baudrate': 2400,
+              'baudrate': 9600,
               'bytesize': 8,
               'stopbits': 1,
               'parity': 'E',
-              'timeout': 1.5
+              'timeout': 0.5
               })
 # 台体通信串口对象
 dRS = RS485({'port': 'COM1',

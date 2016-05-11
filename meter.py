@@ -157,8 +157,11 @@ class Meter():
 
         如:get-energy 00000000 表示抄读 (当前)组合有功总电能
         """
-        if self.protocol['type'] == 0:  # 0-读数据
+        # 0-读数据
+        if self.protocol['type'] == 0:
             return eval(self.protocol['txInfo'])(self.cmd[1])
+        if self.protocol['type'] == 2:
+            return eval(self.protocol['txInfo'])(self.cmd[2], self.cmd[1])
 
     def buildFrame(self):
         """生成发送帧
@@ -194,16 +197,17 @@ class Meter():
             # 根据协议帧的如下类型进行分别处理
             #  0- 读数据
             #  1- 读后续数据
-            #  3- 写数据
-            #  4- 读通信地址
-            #  5- 写通信地址
-            #  6- 广播校时
-            #  7- 冻结命令
-            #  8- 更改通信速率
-            #  9- 修改密码
-            #  10- 最大需量清零
-            #  11- 电表清零
-            #  12- 事件清零
+            #  2- 写数据
+            #  3- 读通信地址
+            #  4- 写通信地址
+            #  5- 广播校时
+            #  6- 冻结命令
+            #  7- 更改通信速率
+            #  8- 修改密码
+            #  9- 最大需量清零
+            #  10- 电表清零
+            #  11- 事件清零
+            #  20- 原始命令帧
             if self.protocol['type'] == 0:
                 # 功能码: 11为抄读数据
                 new_frame.extend(['11'])
@@ -211,6 +215,24 @@ class Meter():
                 new_frame.extend(['04'])
                 # 数据标识：数据标识从参数即self.cmd[1]中提取 加33H 反序
                 new_frame.extend(add33H(splitByLen(self.cmd[1], [2] * 4)[::-1]))
+            elif self.protocol['type'] == 2:
+                # 功能码: 14为写数据
+                new_frame.extend(['14'])
+                # 功能码: 数据域长度
+                new_frame.extend(["{0:02X}".format(12 + len(self.cmd[2]) // 2)])
+                # 数据标识：加33H 反序
+                new_frame.extend(add33H(splitByLen(self.cmd[1], [2] * 4)[::-1]))
+                # 密码：加33H 正序
+                new_frame.extend(add33H(splitByLen(self.getPwd(), [2] * 4)))
+                # 操作者代码：加33H 正序
+                new_frame.extend(add33H(splitByLen(self.getOpcode(), [2] * 4)))
+                # 设定值
+                if "reverse_setting_data" in self.protocol.keys():
+                    setting_list = eval(self.protocol['reverse_setting_data'])(self.cmd[2])
+                else:
+                    setting_list = splitByLen(self.cmd[2],
+                                    [2] * (len(self.cmd[2]) // 2))[::-1]
+                new_frame.extend(add33H(setting_list))
 
             # # type=1表示封装命令包含参数
             # if self.__getType() == 1:
@@ -316,10 +338,14 @@ class Meter():
         TODO: 解决数据的正负号显示问题
         """
         data_area = minus33H(self.rx[10:-2])
-        if self.protocol['type'] == 0:   # 0-读数据
-            return eval(self.protocol['rxInfo'])(data_area)
-        elif self.protocol['type'] == 20:  # 20-原始发送帧
-            return ''
+        # 0-读数据  需要解析数据域
+        if self.protocol['type'] == 0:
+            self.data_list = eval(self.protocol['rxInfo'])(data_area)
+        # 20-原始发送帧, 2-写数据  不需要解析数据域
+        elif (self.protocol['type'] == 20 or
+              self.protocol['type'] == 2):
+            self.data_list = ''
+        return self.data_list
 
     def toPrint(self):
         show = []
@@ -364,6 +390,11 @@ def runCmd(command):
             stampTime()
             for line in show:
                 print(line)
+
+            # 如果解析数据有值则返回
+            if CMD.data_list:
+                return CMD.data_list
+
     # step 2: 匹配不成功输出错误提示
     else:
         stampTime()

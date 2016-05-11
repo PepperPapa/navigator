@@ -10,92 +10,56 @@
 # 3.txInfo：命令帧发送信息，如“抄读正向有功总电能”，内容为调用相应处理函数的字符串表示
 # 4.rxInfo：命令帧接收信息，主要解析返回帧数据域的信息，内容为调用相应处理函数的
 # 字符串表示。
+import re
 
 CMDS = [
-    # {
-    #  'rule': '^:get-load-curve \d{8}( add-(\d)+)?$',
-    #  'txFormat': {
-    #     'slice': [2]*4,
-    #     'order': [0, 1, 2, 3],
-    #     'item': [
-    #             {"06": "负荷曲线: "
-    #             },
-    #             {"00": "", "01": "第1类负荷", "02": "第2类负荷",
-    #              "03": "第3类负荷", "04": "第4类负荷", "05": "第5类负荷",
-    #              "06": "第6类负荷"
-    #             },
-    #             {"00": ""
-    #             },
-    #             {"00": "最早记录块", "01": "给定时间记录块",
-    #             "02": "最近一个记录块"
-    #             }
-    #            ]
-    #    },
-    #  'rxFormat': {
-    #     'unit': [[5, 2, 2, 2, 3, 3, 3, 2],
-    #              [3] * 8,
-    #              [2] * 4,
-    #              [4] * 4,
-    #              [4] * 4,
-    #              [3] * 4
-    #             ],
-    #     'style': [["{0}{1}{2}{3}{4}", "{0}{1[0]}.{1[1]}", "{0}{1[0]}.{1[1]}",
-    #                "{0}{1[0]}.{1[1]}", "{0}{1[0]}.{1[1]}{2}",
-    #                "{0}{1[0]}.{1[1]}{2}", "{0}{1[0]}.{1[1]}{2}",
-    #                "{0}.{1}"],
-    #               ["{0}.{1}{2}"] * 8,
-    #               ["{0[0]}.{0[1]}{1}"] * 4,
-    #               ["{0}{1}{2}.{3}"] * 4,
-    #               ["{0}{1}{2}.{3}"] * 4,
-    #               ["{0}.{1}{2}", "{0}.{1}{2}", "{0}{1[0]}.{1[1]}{2}", "{0}.{1}{2}"]
-    #             ],
-    #     }
-    # },
-    # {
-    #  'rule': '^:set-time (\d\d){3}$',
-    #  'id': "04000102",
-    #  'code': '14',
-    #  'len': '0F',
-    #  'txFormat': "设置时间(hhmmss)"
-    # },
-    # {
-    #  'rule': '^:set-date (\d\d){4}$',
-    #  'id': "04000101",
-    #  'code': '14',
-    #  'len': '10',
-    #  'txFormat': "设置日期及星期(YYMMDDWW)"
-    # },
-
     {'type': 0,
-     'pattern': '^:get-energy \d\d\d[\da-fA-F][\dfF][\dfF]\d[\da-cA-C]$',
+     'pattern': re.compile('^:get-energy \d\d\d[\da-fA-F][\dfF][\dfF]\d[\da-cA-C]$'),
      'txInfo': 'id.eng_tx_name',
      'rxInfo': 'id.eng_rx_data'
      },
     {'type': 0,
-    'pattern': '^:get-demand \d\d\d[\da-fA-F][\dfF][\dfF]\d[\da-cA-C]$',
+    'pattern': re.compile('^:get-demand \d\d\d[\da-fA-F][\dfF][\dfF]\d[\da-cA-C]$'),
     'txInfo': 'id.dmd_tx_name',
     'rxInfo': 'id.dmd_rx_data'
     },
     {'type': 20,    # 20表示原始命令帧
-     'pattern': '^68 ([\da-fA-F]{2} ){6}68 ([\da-fA-F]{2} )+16$',
+     'pattern': re.compile('^68 ([\da-fA-F]{2} ){6}68 ([\da-fA-F]{2} )+16$'),
      'txInfo': 'id.raw_tx_name',
      'rxInfo': 'id.raw_rx_data'
      },
     {'type': 0,
-     'pattern': '^:get-time 04000102$',
+     'pattern': re.compile('^:get-time 04000102$'),
      'txInfo': 'id.time_tx_name',
      'rxInfo': 'id.time_rx_data'
     },
+    {'type': 2,
+     'pattern': re.compile('^:set-time 04000102 (\d\d){3}$'),
+     'txInfo': 'id.settime_tx_name'
+    },
     {'type': 0,
-     'pattern': '^:get-date 04000101$',
+     'pattern': re.compile('^:get-date 04000101$'),
      'txInfo': 'id.date_tx_name',
      'rxInfo': 'id.date_rx_data'
     },
+    {'type': 2,
+     'pattern': re.compile('^:set-date 04000101 (\d\d){4}$'),
+     'txInfo': 'id.setdate_tx_name'
+    },
+    {'type': 0,
+     'pattern': re.compile('^:get-cycle-display 04040[12]\d[\da-fA-F]$'),
+     'txInfo': 'id.cycle_tx_name',
+     'rxInfo': 'id.cycle_rx_data'
+    },
+    {'type': 2,
+     'pattern': re.compile('^:set-cycle-display 04040[12]\d[\da-fA-F] [\da-fA-F]{8},[\da-fA-F]{2}$'),
+     'txInfo': 'id.setcycle_tx_name',
+     'reverse_setting_data': "id.reverse_setting_data"
+    },
     #  TODO: zx 还未实现
     {'type': 0,
-     'pattern': '^:get-load-curve \d{8}( add-(\d)+)?$',
-     'txInfo': 'id.ldcurve_tx_name',
-     'rxInfo': 'id.ldcurve_rx_data'
+     'pattern': re.compile('^:get-load-curve \d{8}( add-(\d)+)?$'),
+     'txInfo': 'id.ldcurve_tx_name'
     },
 ]
 
@@ -225,20 +189,57 @@ class Id():
     def raw_tx_name(self):
         return ""
 
-    def raw_rx_data(self):
-        return ""
-
     def time_tx_name(self, *id):
-        return "时间hhmmss:"
+        return "抄读时间hhmmss"
 
     def time_rx_data(self, data):
         return ["".join(data[4:][::-1])]
 
+    def settime_tx_name(self, *time):
+        return "设置时间hhmmss: " + self.format(time[0], "hh:mm:ss")
+
+    def setdate_tx_name(self, *date):
+        return "设置日期及星期YYMMDDWW: " + self.format(date[0], "YY-MM-DD WW")
+
     def date_tx_name(self, *id):
-        return "日期及星期YYMMDDWW:"
+        return "抄读日期及星期YYMMDDWW"
 
     def date_rx_data(self, data):
         return ["".join(data[4:][::-1])]
+
+    def cycle_tx_name(self, id):
+        type = {"01": "自动", "02": "按键"}
+        return ("抄读" + type[id[4:6]] + "循环显示第" + str(int(id[6:], 16)) +
+                "屏显示数据")
+
+    def cycle_rx_data(self, data):
+        result = []
+        display = "".join(data[4:-1][::-1]) + data[-1]
+        result.append(self.format(display, "XXXXXXXX,XX"))
+        return result
+
+    def setcycle_tx_name(self, *args):
+        """ args: 可变参数，本函数需要两个参数
+        args[0]-为循显设置参数格式xxxxxxxxnn
+                xxxxxxxx-标识数据标识
+                nn-标识屏号
+        args[1]-为数据标识
+        """
+        type = {"01": "自动", "02": "按键"}
+        return ("设置" + type[args[1][4:6]] + "循环显示第" +
+                str(int(args[1][6:], 16)) + "屏显示数据 " + args[0])
+
+    def reverse_setting_data(self, setting):
+        """setting-为命令的设置参数部分
+        如命令为:set-cycle-display xxxxxxxx xxxxxxxx,nn，则
+        setting的值为xxxxxxxx,nn
+        """
+        import meter
+        reverse_list = []
+        set_list = setting.split(',')
+        for set in set_list:
+            reverse_list.extend(meter.splitByLen(set, [2] * (len(set) // 2))[::-1])
+        return reverse_list
 
     def ldcurve_tx_name(self, id):
         "id: 数据标识，字符串形式,如00000000"
@@ -254,7 +255,7 @@ class Id():
         """
         tolist = list(data)
         for index in range(len(format)):
-            if format[index] == "," or format[index] == ".":
+            if (format[index] in [":", ",", "-", " "]):
                 tolist.insert(index, format[index])
         return "".join(tolist)
 
