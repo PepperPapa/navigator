@@ -25,21 +25,6 @@ def splitByLen(string, len_list):
             current_index += i
     return new_list
 
-def formatArray(dataList, formatList):
-    """数组以指定的次序重新排序
-
-    dataList: 原list数组
-    formatList： 指定重牌次序的index list
-    如 datalist = ["01", "02", "03"]
-       formatList = [1, 2, 0]
-       则返回值为["02", "03", "01"]
-    """
-    new_list = []
-    for i in formatList:
-        if i < len(dataList):
-            new_list.append(dataList[i])
-    return new_list
-
 def minus33H(data_list):
     """数据域作减33h处理，接收数据使用
 
@@ -158,7 +143,7 @@ class Meter():
         返回值: "010203040506"
         """
         # TODO: 先临时使用默认值，用于测试
-        self.addr = "338981000003"
+        self.addr = "486248624862"
         return self.addr
 
     def getPwd(self):
@@ -172,8 +157,11 @@ class Meter():
 
         如:get-energy 00000000 表示抄读 (当前)组合有功总电能
         """
-        if self.protocol['type'] == 1:
+        # 0-读数据
+        if self.protocol['type'] == 0:
             return eval(self.protocol['txInfo'])(self.cmd[1])
+        if self.protocol['type'] == 2:
+            return eval(self.protocol['txInfo'])(self.cmd[2], self.cmd[1])
 
     def buildFrame(self):
         """生成发送帧
@@ -194,74 +182,119 @@ class Meter():
         :set-xxxx XXXXXXXX    //4.设置命令、参数
           TODO: 待完善
         """
-        #'68':起始符
-        new_frame = ['68']
-        # 通信地址：反序
-        new_frame.extend(splitByLen(self.getAddr(), [2] * 6)[::-1])
-        #'68':起始符
-        new_frame.extend(['68'])
+        # 原始命令帧直接返回self.cmd即为发送帧
+        if self.protocol['type'] == 20:  # 20-原始发送帧
+            self.tx = self.cmd
+            return self.tx
+        else:
+            #'68':起始符
+            new_frame = ['68']
+            # 通信地址：反序
+            new_frame.extend(splitByLen(self.getAddr(), [2] * 6)[::-1])
+            #'68':起始符
+            new_frame.extend(['68'])
 
-        # type=1表示封装命令包含参数
-        if self.__getType() == 1:
-            # 功能码: 11为抄读数据
-            new_frame.extend(['11'])
-            # 功能码: 数据域长度
-            new_frame.extend(['04'])
-            # 数据标识：数据标识从参数即self.cmd[1]中提取 加33H 反序
-            new_frame.extend(add33H(splitByLen(
-                             self.cmd[1], [2] * 4)[::-1]))
-        # type=1表示封装命令包含参数和附加参数
-        elif self.__getType() == 2:
-            # 提取附加参数 add-XXXXXXXX, 如果附件参数长度不是偶数，则在最后一个
-            # 参数前插入0，如 抄读负荷曲线时，附件参数可能为块数，抄读02块，用户
-            # 使用时可以会省略那个0
-            add_para = self.cmd[2].split('-')[1]
-            if len(add_para) % 2 != 0:
-                add_para = add_para[0:-1] + '0' + add_para[-1]
-            add_para = splitByLen(add_para, [2] * (len(add_para) // 2))
+            # 根据协议帧的如下类型进行分别处理
+            #  0- 读数据
+            #  1- 读后续数据
+            #  2- 写数据
+            #  3- 读通信地址
+            #  4- 写通信地址
+            #  5- 广播校时
+            #  6- 冻结命令
+            #  7- 更改通信速率
+            #  8- 修改密码
+            #  9- 最大需量清零
+            #  10- 电表清零
+            #  11- 事件清零
+            #  20- 原始命令帧
+            if self.protocol['type'] == 0:
+                # 功能码: 11为抄读数据
+                new_frame.extend(['11'])
+                # 功能码: 数据域长度
+                new_frame.extend(['04'])
+                # 数据标识：数据标识从参数即self.cmd[1]中提取 加33H 反序
+                new_frame.extend(add33H(splitByLen(self.cmd[1], [2] * 4)[::-1]))
+            elif self.protocol['type'] == 2:
+                # 功能码: 14为写数据
+                new_frame.extend(['14'])
+                # 功能码: 数据域长度
+                new_frame.extend(["{0:02X}".format(12 + len(self.cmd[2]) // 2)])
+                # 数据标识：加33H 反序
+                new_frame.extend(add33H(splitByLen(self.cmd[1], [2] * 4)[::-1]))
+                # 密码：加33H 正序
+                new_frame.extend(add33H(splitByLen(self.getPwd(), [2] * 4)))
+                # 操作者代码：加33H 正序
+                new_frame.extend(add33H(splitByLen(self.getOpcode(), [2] * 4)))
+                # 设定值
+                if "reverse_setting_data" in self.protocol.keys():
+                    setting_list = eval(self.protocol['reverse_setting_data'])(self.cmd[2])
+                else:
+                    setting_list = splitByLen(self.cmd[2],
+                                    [2] * (len(self.cmd[2]) // 2))[::-1]
+                new_frame.extend(add33H(setting_list))
 
-            # 功能码: 11为抄读数据
-            new_frame.extend(['11'])
-            # 功能码: 数据域长度
-            new_frame.extend(['{0:02X}'.format(4 + len(add_para))])
-            # 数据标识：数据标识从参数即self.cmd[1]中提取 加33H 反序
-            new_frame.extend(add33H(splitByLen(
-                             self.cmd[1], [2] * 4)[::-1]))
-            # 附加参数
-            new_frame.extend(add33H(add_para[::-1]))
-        # type等于0表示封装命令不包含参数或附加参数
-        elif self.__getType() == 0:
-            # 功能码: 11为抄读数据
-            new_frame.extend(['11'])
-            # 功能码: 数据域长度
-            new_frame.extend(['04'])
-            # 数据标识：加33H 反序
-            new_frame.extend(add33H(splitByLen(
-                             self.protocol['id'], [2] * 4)[::-1]))
-        # type等于3表示封装命令为设置命令
-        elif self.__getType() == 3:
-            # 功能码: 11为抄读数据
-            new_frame.extend([self.protocol['code']])
-            # 功能码: 数据域长度
-            new_frame.extend([self.protocol['len']])
-            # 数据标识：加33H 反序
-            new_frame.extend(add33H(splitByLen(
-                             self.protocol['id'], [2] * 4)[::-1]))
-            # 密码：加33H 正序
-            new_frame.extend(add33H(splitByLen(
-                             self.getPwd(), [2] * 4)))
-            # 操作者代码：加33H 正序
-            new_frame.extend(add33H(splitByLen(
-                             self.getOpcode(), [2] * 4)))
-            # 设定值
-            new_frame.extend(add33H(splitByLen(self.cmd[1],
-                             [2] * (len(self.cmd[1]) // 2))[::-1]))
-        # 校验和
-        new_frame.extend(getCheckSum(new_frame))
-        #'16':结束符
-        new_frame.extend(['16'])
-        self.tx = new_frame
-        return new_frame
+            # # type=1表示封装命令包含参数
+            # if self.__getType() == 1:
+            #     # 功能码: 11为抄读数据
+            #     new_frame.extend(['11'])
+            #     # 功能码: 数据域长度
+            #     new_frame.extend(['04'])
+            #     # 数据标识：数据标识从参数即self.cmd[1]中提取 加33H 反序
+            #     new_frame.extend(add33H(splitByLen(
+            #                      self.cmd[1], [2] * 4)[::-1]))
+            # # type=1表示封装命令包含参数和附加参数
+            # elif self.__getType() == 2:
+            #     # 提取附加参数 add-XXXXXXXX, 如果附件参数长度不是偶数，则在最后一个
+            #     # 参数前插入0，如 抄读负荷曲线时，附件参数可能为块数，抄读02块，用户
+            #     # 使用时可以会省略那个0
+            #     add_para = self.cmd[2].split('-')[1]
+            #     if len(add_para) % 2 != 0:
+            #         add_para = add_para[0:-1] + '0' + add_para[-1]
+            #     add_para = splitByLen(add_para, [2] * (len(add_para) // 2))
+            #
+            #     # 功能码: 11为抄读数据
+            #     new_frame.extend(['11'])
+            #     # 功能码: 数据域长度
+            #     new_frame.extend(['{0:02X}'.format(4 + len(add_para))])
+            #     # 数据标识：数据标识从参数即self.cmd[1]中提取 加33H 反序
+            #     new_frame.extend(add33H(splitByLen(
+            #                      self.cmd[1], [2] * 4)[::-1]))
+            #     # 附加参数
+            #     new_frame.extend(add33H(add_para[::-1]))
+            # # type等于0表示封装命令不包含参数或附加参数
+            # elif self.__getType() == 0:
+            #     # 功能码: 11为抄读数据
+            #     new_frame.extend(['11'])
+            #     # 功能码: 数据域长度
+            #     new_frame.extend(['04'])
+            #     # 数据标识：加33H 反序
+            #     new_frame.extend(add33H(splitByLen(
+            #                      self.protocol['id'], [2] * 4)[::-1]))
+            # # type等于3表示封装命令为设置命令
+            # elif self.__getType() == 3:
+            #     # 功能码: 11为抄读数据
+            #     new_frame.extend([self.protocol['code']])
+            #     # 功能码: 数据域长度
+            #     new_frame.extend([self.protocol['len']])
+            #     # 数据标识：加33H 反序
+            #     new_frame.extend(add33H(splitByLen(
+            #                      self.protocol['id'], [2] * 4)[::-1]))
+            #     # 密码：加33H 正序
+            #     new_frame.extend(add33H(splitByLen(
+            #                      self.getPwd(), [2] * 4)))
+            #     # 操作者代码：加33H 正序
+            #     new_frame.extend(add33H(splitByLen(
+            #                      self.getOpcode(), [2] * 4)))
+            #     # 设定值
+            #     new_frame.extend(add33H(splitByLen(self.cmd[1],
+            #                      [2] * (len(self.cmd[1]) // 2))[::-1]))
+            # 校验和
+            new_frame.extend(getCheckSum(new_frame))
+            #'16':结束符
+            new_frame.extend(['16'])
+            self.tx = new_frame
+            return new_frame
 
     def send(self, rs485):
         result = rs485.sendToCOM(self.tx)
@@ -305,12 +338,19 @@ class Meter():
         TODO: 解决数据的正负号显示问题
         """
         data_area = minus33H(self.rx[10:-2])
-        if self.protocol['type'] == 1:
-            return eval(self.protocol['rxInfo'])(data_area)
+        # 0-读数据  需要解析数据域
+        if self.protocol['type'] == 0:
+            self.data_list = eval(self.protocol['rxInfo'])(data_area)
+        # 20-原始发送帧, 2-写数据  不需要解析数据域
+        elif (self.protocol['type'] == 20 or
+              self.protocol['type'] == 2):
+            self.data_list = ''
+        return self.data_list
 
     def toPrint(self):
         show = []
-        show.append(self.getItemName())
+        if self.getItemName():
+            show.append(self.getItemName())
         show.append("发:" + " ".join(self.tx))
         show.append("收:" + " ".join(self.rx))
         show.append(self.responseInfo())
@@ -350,6 +390,11 @@ def runCmd(command):
             stampTime()
             for line in show:
                 print(line)
+
+            # 如果解析数据有值则返回
+            if CMD.data_list:
+                return CMD.data_list
+
     # step 2: 匹配不成功输出错误提示
     else:
         stampTime()

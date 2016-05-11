@@ -26,7 +26,7 @@ def psend(cmdin):
     if re.match('^:dut-', cmdin):
         dut.runCmd(cmdin)
     else:
-        meter.runCmd(cmdin)
+        return meter.runCmd(cmdin)
 
 class Nav():
     def __init__(self, root):
@@ -119,8 +119,8 @@ class Nav():
         self.inputText.bind('<Button-3>', self.makePopupMenu)
 
         # 跟踪插入光标的行列信息
-        self.inputText.bind('<KeyPress>', self.updateInsertPos)
-        self.inputText.bind('<Button-1>', self.updateInsertPos)
+        self.inputText.bind('<KeyRelease>', self.updateInsertPos)
+        self.inputText.bind('<ButtonRelease>', self.updateInsertPos)
 
         # 读取默认测试脚本
         if os.path.exists(os.getcwd() + "\\testsuite\default.py"):
