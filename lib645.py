@@ -298,6 +298,8 @@ class Id():
             result = []
             for i in data_matched:
                 result.extend(i)
+        else:
+            result = ["返回数据区为空"]
         return result
 
     def format(self, data, format):
