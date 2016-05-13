@@ -1,78 +1,42 @@
-a = psend(":set-date 04000101 16051109")
-print(a)
-:set-time 04000102 163156
-:get-date 04000101
-:set-date 04000101 16051109
-:get-cycle-display 04040201
-:set-cycle-display 04040201 0101000000
+r = r'.*A0 A0 [\da-fA-F]{2} (\d{2} \d{2} \d{2} \d{2} \d{2} )(.*)AA (.*)AA (.*)AA (.*)AA (.*)AA (.*)AA [\da-fA-F]{2} E5'
+# 每个数据项占用字节数列表，按照负荷曲线数据项的顺序配置，第一项为数据标识
+bl = [[5],     # 存储时刻
+[2, 2, 2, 3, 3, 3, 2],  # 电压、电流、频率
+[3] * 8, # 有、无功功率
+[2] * 4, # 功率因数
+[4] * 4, # 有、无功总电能
+[4] * 4, # 四象限无功总电能
+[3] * 4  # 有、无功需量、零线电流、总视在功率
+]
+# 每个数据项的数据格式列表
+df = [["YYMMDDhhmm"], # 存储时刻
+["XXX.X", "XXX.X", "XXX.X", "XXX.XXX", "XXX.XXX", "XXX.XXX",
+"XX.XX"], # 电压、电流、频率
+["XX.XXXX", "XX.XXXX", "XX.XXXX", "XX.XXXX", "XX.XXXX",
+"XX.XXXX", "XX.XXXX", "XX.XXXX"], # 有、无功功率
+["X.XXX", "X.XXX", "X.XXX", "X.XXX"], # 功率因数
+["XXXXXX.XX", "XXXXXX.XX", "XXXXXX.XX", "XXXXXX.XX"], # 有、无功总电能
+["XXXXXX.XX", "XXXXXX.XX", "XXXXXX.XX", "XXXXXX.XX"], # 四象限无功总电能
+["XX.XXXX", "XX.XXXX", "XXX.XXX", "XX.XXXX"] # 有、无功需量、零线电流、总视在功率
+]
 
-# 当前抄读需量数据标识
-cur_dmd = ["01010000", "01020000", "01050000", "01060000", "01070000", "01080000", "01090000", "010A0000", "01150000", "01160000", "01290000", "012A0000", "013D0000", "013E0000"]
-for id in cur_dmd:
-  psend(":get-demand " + id)
+m = meter.minus33H("35 33 33 39 D3 D3 4F 38 33 34 34 4A CC 56 43 57 3A 57 33 33 33 33 33 33 33 33 33 33 83 DD DD DD DD DD DD 14 18".split())
+m = " ".join(m)
 
-# 上1结算日需量数据标识
-ls1_dmd = ["01010001", "01020001", "01090001", "010A0001"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
+m = re.match(r, m).groups()
+m = list(m)
 
-# 上2结算日需量数据标识
-ls1_dmd = ["01010002", "01020002", "01090002", "010A0002"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
+for i in range(len(m)):
+  m[i] = m[i].split()
+  m[i] = meter.splitByLen(m[i], bl[i])
+  for j in range(len(m[i])):
+    m[i][j].reverse()
 
-# 上3结算日需量数据标识
-ls1_dmd = ["01010003", "01020003", "01090003", "010A0003"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上4结算日需量数据标识
-ls1_dmd = ["01010004", "01020004", "01090004", "010A0004"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上5结算日需量数据标识
-ls1_dmd = ["01010005", "01020005", "01090005", "010A0005"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上6结算日需量数据标识
-ls1_dmd = ["01010006", "01020006", "01090006", "010A0006"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上7结算日需量数据标识
-ls1_dmd = ["01010007", "01020007", "01090007", "010A0007"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上8结算日需量数据标识
-ls1_dmd = ["01010008", "01020008", "01090008", "010A0008"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上9结算日需量数据标识
-ls1_dmd = ["01010009", "01020009", "01090009", "010A0009"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上10结算日需量数据标识
-ls1_dmd = ["0101000a", "0102000a", "0109000a", "010A000a"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上11结算日需量数据标识
-ls1_dmd = ["0101000b", "0102000b", "0109000b", "010A000b"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上12结算日需量数据标识
-ls1_dmd = ["0101000c", "0102000c", "0109000c", "010A000c"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
+for i in range(len(m)):
+  if m[i]:
+    for j in range(len(m[i])):
+      m[i][j] = meter.id.format("".join(m[i][j]), df[i][j])
 
 
 
-
-
-
+print(m)

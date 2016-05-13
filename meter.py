@@ -212,9 +212,17 @@ class Meter():
                 # 功能码: 11为抄读数据
                 new_frame.extend(['11'])
                 # 功能码: 数据域长度
-                new_frame.extend(['04'])
+                if self.protocol.get("add"):
+                    add_len = len(self.cmd[2][4:]) // 2
+                    new_frame.extend(['{0:02X}'.format(4 + add_len)])
+                else:
+                    new_frame.extend(['04'])
                 # 数据标识：数据标识从参数即self.cmd[1]中提取 加33H 反序
                 new_frame.extend(add33H(splitByLen(self.cmd[1], [2] * 4)[::-1]))
+                # 附件参数: 如果需要附加参数的话
+                if self.protocol.get("add"):
+                    new_frame.extend(add33H(splitByLen(self.cmd[2][4:],
+                                                        [2] * add_len)[::-1]))
             elif self.protocol['type'] == 2:
                 # 功能码: 14为写数据
                 new_frame.extend(['14'])
@@ -227,7 +235,9 @@ class Meter():
                 # 操作者代码：加33H 正序
                 new_frame.extend(add33H(splitByLen(self.getOpcode(), [2] * 4)))
                 # 设定值
-                if "reverse_setting_data" in self.protocol.keys():
+                # 有些协议命令的设置参数反序比较特殊，在协议模板中增加
+                # reverse_setting_data进行单独处理
+                if self.protocol.get("reverse_setting_data"):
                     setting_list = eval(self.protocol['reverse_setting_data'])(self.cmd[2])
                 else:
                     setting_list = splitByLen(self.cmd[2],
