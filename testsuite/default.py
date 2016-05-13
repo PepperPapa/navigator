@@ -1,78 +1,35 @@
-a = psend(":set-date 04000101 16051109")
-print(a)
-:set-time 04000102 163156
-:get-date 04000101
-:set-date 04000101 16051109
-:get-cycle-display 04040201
-:set-cycle-display 04040201 0101000000
+import time
 
-# 当前抄读需量数据标识
-cur_dmd = ["01010000", "01020000", "01050000", "01060000", "01070000", "01080000", "01090000", "010A0000", "01150000", "01160000", "01290000", "012A0000", "013D0000", "013E0000"]
-for id in cur_dmd:
-  psend(":get-demand " + id)
+for i in range(10):
+  r = psend(":get-load-curve 06000002 add-01")
+  print(r)
+  time.sleep(30)
 
-# 上1结算日需量数据标识
-ls1_dmd = ["01010001", "01020001", "01090001", "010A0001"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上2结算日需量数据标识
-ls1_dmd = ["01010002", "01020002", "01090002", "010A0002"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上3结算日需量数据标识
-ls1_dmd = ["01010003", "01020003", "01090003", "010A0003"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上4结算日需量数据标识
-ls1_dmd = ["01010004", "01020004", "01090004", "010A0004"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上5结算日需量数据标识
-ls1_dmd = ["01010005", "01020005", "01090005", "010A0005"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上6结算日需量数据标识
-ls1_dmd = ["01010006", "01020006", "01090006", "010A0006"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上7结算日需量数据标识
-ls1_dmd = ["01010007", "01020007", "01090007", "010A0007"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上8结算日需量数据标识
-ls1_dmd = ["01010008", "01020008", "01090008", "010A0008"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上9结算日需量数据标识
-ls1_dmd = ["01010009", "01020009", "01090009", "010A0009"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上10结算日需量数据标识
-ls1_dmd = ["0101000a", "0102000a", "0109000a", "010A000a"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上11结算日需量数据标识
-ls1_dmd = ["0101000b", "0102000b", "0109000b", "010A000b"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-# 上12结算日需量数据标识
-ls1_dmd = ["0101000c", "0102000c", "0109000c", "010A000c"]
-for id in ls1_dmd:
-  psend(":get-demand " + id)
-
-
-
-
-
-
+# 总
+:get-load-curve 06000000 add-01
+:get-load-curve 06000001 add-170101012801
+:get-load-curve 06000002 add-01
+# 1类负荷
+:get-load-curve 06010000 add-01
+:get-load-curve 06010001 add-160513090001
+:get-load-curve 06010002 add-01
+# 2类负荷
+:get-load-curve 06020000 add-01
+:get-load-curve 06020001 add-160513090001
+:get-load-curve 06020002 add-01
+# 3类负荷
+:get-load-curve 06030000 add-01
+:get-load-curve 06030001 add-160513090001
+:get-load-curve 06030002 add-01
+# 4类负荷
+:get-load-curve 06040000 add-01
+:get-load-curve 06040001 add-160513090001
+:get-load-curve 06040002 add-01
+# 5类负荷
+:get-load-curve 06050000 add-01
+:get-load-curve 06050001 add-160513090001
+:get-load-curve 06050002 add-01
+# 6类负荷
+:get-load-curve 06060000 add-01
+:get-load-curve 06060001 add-160513090001
+:get-load-curve 06060002 add-01

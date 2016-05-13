@@ -54,12 +54,14 @@ CMDS = [
     {'type': 2,
      'pattern': re.compile('^:set-cycle-display 04040[12]\d[\da-fA-F] [\da-fA-F]{8},[\da-fA-F]{2}$'),
      'txInfo': 'id.setcycle_tx_name',
+     # 表示需要特殊处理设定参数反序， 如 01010000,01 生成发送的顺序是00000101,01
      'reverse_setting_data': "id.reverse_setting_data"
     },
-    #  TODO: zx 还未实现
     {'type': 0,
      'pattern': re.compile('^:get-load-curve \d{8}( add-(\d)+)?$'),
-     'txInfo': 'id.ldcurve_tx_name'
+     'txInfo': 'id.ldcurve_tx_name',
+     'rxInfo': 'id.ldcurve_rx_data',
+     'add': True   # 表示需要处理附加参数 add-nn或add-YYMMDDhhmmnn
     },
 ]
 
@@ -243,19 +245,75 @@ class Id():
 
     def ldcurve_tx_name(self, id):
         "id: 数据标识，字符串形式,如00000000"
-        pass
 
-    def ldcurve_rx_data(self):
-        pass
+        result = self.get_slice_name(id, load_curve_slice_name)
+        return "".join(formatArray(result, [0, 1, 2, 3]))
+
+    def ldcurve_rx_data(self, data):
+        "data: 表示返回帧数据域（已做减33H处理）, 格式为字符串数组"
+        import meter
+        # 将data转为字符串，方便使用正则表达式进行提取
+        data_str = " ".join(data)
+        # 匹配组提取所需的数据信息
+        r = r'.*A0 A0 [\da-fA-F]{2} (\d{2} \d{2} \d{2} \d{2} \d{2} )(.*)AA (.*)AA (.*)AA (.*)AA (.*)AA (.*)AA [\da-fA-F]{2} E5'
+        # 每个数据项占用字节数列表，按照负荷曲线数据项的顺序配置，第一项为数据标识
+        bl = [[5],     # 存储时刻
+              [2, 2, 2, 3, 3, 3, 2],  # 电压、电流、频率
+              [3] * 8, # 有、无功功率
+              [2] * 4, # 功率因数
+              [4] * 4, # 有、无功总电能
+              [4] * 4, # 四象限无功总电能
+              [3] * 4  # 有、无功需量、零线电流、总视在功率
+              ]
+        # 每个数据项的数据格式列表
+        df = [["YYMMDDhhmm"], # 存储时刻
+              ["XXX.X", "XXX.X", "XXX.X", "XXX.XXX", "XXX.XXX", "XXX.XXX",
+               "XX.XX"], # 电压、电流、频率
+              ["XX.XXXX", "XX.XXXX", "XX.XXXX", "XX.XXXX", "XX.XXXX",
+               "XX.XXXX", "XX.XXXX", "XX.XXXX"], # 有、无功功率
+              ["X.XXX", "X.XXX", "X.XXX", "X.XXX"], # 功率因数
+              ["XXXXXX.XX", "XXXXXX.XX", "XXXXXX.XX", "XXXXXX.XX"], # 有、无功总电能
+              ["XXXXXX.XX", "XXXXXX.XX", "XXXXXX.XX", "XXXXXX.XX"], # 四象限无功总电能
+              ["XX.XXXX", "XX.XXXX", "XXX.XXX", "XX.XXXX"] # 有、无功需量、零线电流、总视在功率
+            ]
+        # 提取匹配数据
+        data_matched = re.match(r, data_str)
+        result = []
+        if data_matched:
+            data_matched = data_matched.groups()
+            # 将tuple类型转化为list，因为需要修改数据的值
+            data_matched = list(data_matched)
+            # 对数据项进行分组、反序处理
+            for i in range((len(data_matched))):
+              data_matched[i] = meter.splitByLen(data_matched[i].split(), bl[i])
+              for j in range(len(data_matched[i])):
+                data_matched[i][j].reverse()
+
+            # 针对数据项进行数据格式处理
+            for i in range(len(data_matched)):
+              if data_matched[i]:
+                for j in range(len(data_matched[i])):
+                  data_matched[i][j] = meter.id.format(
+                                        "".join(data_matched[i][j]), df[i][j])
+            result = []
+            for i in data_matched:
+                result.extend(i)
+        else:
+            result = ["返回数据区为空"]
+        return result
 
     def format(self, data, format):
         """返回数据显示格式format要求的字符串数据形式
         data,format 均为字符串形式
         如 format=XXXXXX.XX 返回的数据形式为100326.56
         """
+        # TODO: zx 考虑增加参数 **args 可以在数据前添加数据项名，后面添加单位符号
+
+        # 字符串转化为数组，如"abc" to ["a", "b", "c"]
         tolist = list(data)
+
         for index in range(len(format)):
-            if (format[index] in [":", ",", "-", " "]):
+            if (format[index] in [":", ",", "-", " ", "."]):
                 tolist.insert(index, format[index])
         return "".join(tolist)
 
