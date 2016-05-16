@@ -63,6 +63,11 @@ CMDS = [
      'rxInfo': 'id.ldcurve_rx_data',
      'add': True   # 表示需要处理附加参数 add-nn或add-YYMMDDhhmmnn
     },
+    {'type': 3,
+     'pattern': re.compile('^:get-addr$'),
+     'txInfo': 'id.addr_tx_name',
+     'rxInfo': 'id.addr_rx_data',
+    },
 ]
 
 # 全局变量
@@ -219,6 +224,12 @@ class Id():
         display = "".join(data[4:-1][::-1]) + data[-1]
         result.append(self.format(display, "XXXXXXXX,XX"))
         return result
+
+    def addr_tx_name(self, id):
+        return "抄读通信地址"
+
+    def addr_rx_data(self, data):
+        return ["".join(data[::-1])]
 
     def setcycle_tx_name(self, *args):
         """ args: 可变参数，本函数需要两个参数
