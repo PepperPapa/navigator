@@ -1,4 +1,4 @@
-# 1.简介
+﻿# 1.简介
 navigator是一款轻量级的开源电能表自动化测试工具，该工具通信协议完全按照dl645-2007协议开发。该工具基于python3.4版本开发，使用了第三方串口通信模块pyserial。  
 >取名为navigator的原因仅是因为开发工具的界面和命令封装形式借鉴了华为工作期间使用的一款同名自动化测试工具
 
@@ -102,7 +102,7 @@ help 封装命令 ---查看某个封装命令的详细介绍，功能、返回�
 
 # 6.程序打包
 1. step1：pip install pyinstaller ---安装pyinstaller，同时会安装pypiwin32依赖程序
-2. step2：cd到程序文件夹navigator下，执行pyinstaller --noconsole navigator.py noconsole表示不显示控制台窗口
+2. step2：cd到程序文件夹navigator下，执行pyinstaller --noconsole navigator.py, noconsole表示不显示控制台窗口
 3. step3：执行完毕后会生成build、dist两个文件夹以及navigator_spec文件，dist文件夹下的navigator文件夹即可作为发布程序，可以直接执行其中的exe文件，不依赖python环境。  
 
 # 7.dl645-2007协议帧分析
