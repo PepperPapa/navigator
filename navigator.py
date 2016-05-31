@@ -272,7 +272,7 @@ class ComsetDlg():
             'bytesize': [5, 6, 7, 8],
             'stopbits': [1, 2],
             'parity': ['O', 'E', 'N'],
-            'timeout': ['0.5', '1.5', '2', '2.5']
+            'timeout': ['0.3', '0.2', '0.5', '1.5', '2', '2.5']
         }
         cur_set = rs.getParameter()
         para_items = [{"串口:": [all_sets['port'],
