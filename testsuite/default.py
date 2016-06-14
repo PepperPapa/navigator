@@ -10,3 +10,4 @@ for i in range(100):
 psend(":get-addr")
 
 
+:get-load-curve 06000000 add-01
