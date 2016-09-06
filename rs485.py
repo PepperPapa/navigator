@@ -1,15 +1,13 @@
-﻿# !/usr/bin/python3.4
+﻿# python3.5
 # Filename: rs485.py
 # Copyright zhongxin2506@outlook.com
-# 实现rs485通信功能，提供对外接口
-
-import math
+# 实现rs485串口通信功能，提供物理层通信接口
 
 #第三方库
 import serial
 
 class RS485():
-    def __init__(self, para={'port': 'COM5',
+    def __init__(self, para={'port': 'COM3',
                               'baudrate': 2400,
                               'bytesize': 8,
                               'stopbits': 1,
@@ -77,8 +75,8 @@ class RS485():
         return self._bytesToFrame(self.receive)
 
 # 表计通信串口对象
-mRS = RS485({'port': 'COM5',
-              'baudrate': 9600,
+mRS = RS485({'port': 'COM3',
+              'baudrate': 2400,
               'bytesize': 8,
               'stopbits': 1,
               'parity': 'E',
