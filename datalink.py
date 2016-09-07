@@ -48,11 +48,13 @@ class LinkLayer:
         detail_frame["data"] = frame[(4 + sa_len + 4):-3]
         detail_frame["fcs"] = frame[-3:-1]
         self.detail_frame = detail_frame
+        self.detail_frame["origin"] = frame
         return detail_frame
 
     def displayFrameInfo(self, dfm):
         # dfm-为解析后的dict对象，如self.detail_frame
         display = """
+帧%s的解析结果>>
 {
   起始符: %s
   长度域: %s
@@ -76,7 +78,8 @@ class LinkLayer:
   帧校验FCS: %s
   结束符: %s
 }
-        """ % (dfm["start"],
+        """ % (" ".join(dfm["origin"]),
+        dfm["start"],
         dfm["length"],
         ["0--客户机发出", "1--服务器发出"][dfm["control"]["dir"]],
         ["0--服务器发起", "1--客户机发起"][dfm["control"]["prm"]],
