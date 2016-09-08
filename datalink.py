@@ -32,7 +32,7 @@ class LinkLayer:
         detail_sa["type"] = (int(sa[0], 16) & 0xc0) >> 6
         detail_sa["logic-addr"] = (int(sa[0], 16) & 0x30) >> 4
         detail_sa["len"] = sa_len
-        detail_sa["addr"] = sa[1::]
+        detail_sa["addr"] = sa[1::][::-1]
         return detail_sa
 
     def getFrameInfo(self, frame):
@@ -99,7 +99,7 @@ class LinkLayer:
 link = LinkLayer()
 
 if __name__ == '__main__':
-    link.send("68 17 00 43 05 11 11 11 11 11 11 10 6A 36 05 01 00 F3 00 02 01 00 C6 45 16".split())
+    link.send("68 66 00 C3 05 12 90 78 56 34 12 10 AE F1 85 01 01 10 10 02 00 01 01 05 02 02 06 00 00 07 A8 1C 07 E0 09 06 0B 15 00 02 02 06 00 00 06 98 1C 07 E0 09 06 0E 3B 00 02 02 06 00 00 06 98 1C 07 E0 09 06 0F 12 00 02 02 06 00 00 00 00 1C 07 D0 00 00 00 00 00 02 02 06 00 00 07 A8 1C 07 E0 09 06 0B 15 00 00 00 7A 74 16".split())
     print(link.read())
-    print(link.getFrameInfo(link.rx[4::]))
+    print(link.getFrameInfo(link.tx))
     print(link.displayFrameInfo(link.detail_frame))
