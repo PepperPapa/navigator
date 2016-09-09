@@ -13,8 +13,39 @@ APDU_TYPE = {
     "86": "SetResponse"
 }
 
+DAR = {
+    "00": "00--成功",
+    "03": "03--拒绝读写",
+    "04": "04--对象未定义",
+    "FF": "FF--其他"
+}
+
+def octet_string(data):
+    return {
+        "len": int(data[0], 16),
+        "val": " ".join(data[1::])
+    }
+
+def date_time_s(data):
+    return "%s-%s-%s %s-%s-%s" % ("{0:04}".format(int("".join(data[0:2]), 16)),
+                                  "{0:02}".format(int(data[2], 16)),
+                                  "{0:02}".format(int(data[3], 16)),
+                                  "{0:02}".format(int(data[4], 16)),
+                                  "{0:02}".format(int(data[5], 16)),
+                                  "{0:02}".format(int(data[6], 16)))
+
+DATA_PATTERN = {
+    # "02": structure,
+    "09": octet_string,
+    "16": lambda n: int(n[0], 16),
+    "1C": date_time_s,
+}
+
 class App:
     def __init__(self):
+        self.apdu = {}
+
+    def resetApdu(self):
         self.apdu = {}
 
     def getFrameInfo(self, frame):
@@ -63,16 +94,66 @@ class App:
         # 获取用户数据中操作OAD相关的数据信息
         # 如 GET-Request data为空，GET-Response为抄读数据，SET-Request为设置数据
         # Set-response为执行结果
-        pass
+        if int(self.user_data[0], 16) >= 130:
+            self.apdu["dataRelatedWithOAD"] = self.user_data[7:-2]
+        else:
+            self.apdu["dataRelatedWithOAD"] = self.user_data[7:-1]
+        return self.apdu["dataRelatedWithOAD"]
+
+    def getObjectInfo(self):
+        self.apdu["object"] = {}
+        # 05-GET-Request
+        if self.user_data[0] == "05":
+            if self.user_data[1] == "01":
+                self.apdu["object"] = {}
+        # 06-SET-Request
+        elif self.user_data[0] == "06":
+            if self.user_data[1] == "01":
+                self.apdu["object"]["dataType"] = self.apdu["dataRelatedWithOAD"][0]
+                self.apdu["object"]["setValue"] = (
+                        DATA_PATTERN[self.apdu["object"]["dataType"]](
+                                    self.apdu["dataRelatedWithOAD"][1::]))
+        # 0x85-GET-Response
+        elif self.user_data[0] == "85":
+            if self.user_data[1] == "01":
+                self.apdu["object"]["result"] = self.apdu["dataRelatedWithOAD"][0]
+                # 01- Data 成功抄读
+                if self.apdu["object"]["result"] == "01":
+                    self.apdu["object"]["dataType"] = self.apdu["dataRelatedWithOAD"][1]
+                    self.apdu["object"]["value"] = (
+                            DATA_PATTERN[self.apdu["object"]["dataType"]](
+                                self.apdu["dataRelatedWithOAD"][2::]))
+                # 00- DAR 返回错误信息
+                elif self.apdu["object"]["result"] == "00":
+                    self.apdu["object"]["error"] = DAR[self.apdu["dataRelatedWithOAD"][1]]
+        # 0x86-SET-Response
+        elif self.user_data[0] == "86":
+            if self.user_data[1] == "01":
+                self.apdu["object"]["result"] = DAR[self.apdu["dataRelatedWithOAD"][0]]
+        return self.apdu["object"]
+
 
 app = App()
 
+def test():
+    while True:
+        cmd = input("输入待解析的帧或exit>>")
+        if cmd == "exit":
+            break
+        frm = cmd.split()
+        app.getFrameInfo(frm)
+        print(app.displayFrameInfo())
+        app.getUserData()
+        app.getAPDUType()
+        app.getDataUnitType()
+        app.getPIID()
+        app.getOAD()
+        app.getDataRelatedWithOAD()
+        app.getObjectInfo()
+        print("APDU解析信息>>")
+        for k,v in app.apdu.items():
+            print("%s: %s" % (k, v))
+        app.resetApdu()
+
 if __name__ == '__main__':
-    app.getFrameInfo("68 17 00 43 05 11 11 11 11 11 11 10 6A 36 05 01 00 40 03 02 00 00 9B 3A 16".split())
-    print(app.displayFrameInfo())
-    app.getUserData()
-    app.getAPDUType()
-    app.getDataUnitType()
-    app.getPIID()
-    app.getOAD()
-    print(app.apdu)
+    test()
