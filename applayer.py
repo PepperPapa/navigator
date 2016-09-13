@@ -4,6 +4,8 @@
 """
 应用层： 只允许于数据链路层通信，不允许直接调用物理层接口
 """
+import ctypes
+
 from datalink import *
 
 APDU_TYPE = {
@@ -19,6 +21,18 @@ DAR = {
     "04": "04--对象未定义",
     "FF": "FF--其他"
 }
+
+def double_long(data):
+    tem = int("".join(data), 16)
+    tem = ctypes.c_long(tem).value
+    return tem
+
+def visible_string(data):
+    tem = []
+    for i in data[1::]:
+        if not i == "00":
+            tem.append(chr(int(i,16)))
+    return "".join(tem)
 
 def octet_string(data):
     return {
@@ -36,7 +50,13 @@ def date_time_s(data):
 
 DATA_PATTERN = {
     # "02": structure,
+    "04": lambda n: "{0:b}".format(int(n[1], 16)),
+    "05": double_long,
+    "06": lambda n: int("".join(n[:]), 16),
     "09": octet_string,
+    "0A": visible_string,
+    "11": lambda n: int(n[0], 16),
+    "12": lambda n: int("".join(n[:]), 16),
     "16": lambda n: int(n[0], 16),
     "1C": date_time_s,
 }
