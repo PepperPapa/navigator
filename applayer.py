@@ -11,8 +11,10 @@ from datalink import *
 APDU_TYPE = {
     "05": "GetRequest",
     "06": "SetRequest",
+    "07": "ACTIONRequest",
     "85": "GetResponse",
-    "86": "SetResponse"
+    "86": "SetResponse",
+    "87": "ACTIONResponse"
 }
 
 DAR = {
@@ -49,6 +51,7 @@ def date_time_s(data):
                                   "{0:02}".format(int(data[6], 16)))
 
 DATA_PATTERN = {
+    "00": lambda n: "null",
     # "02": structure,
     "04": lambda n: "{0:b}".format(int(n[1], 16)),
     "05": double_long,
@@ -104,21 +107,37 @@ class App:
             return self.apdu["PPID"]
 
     def getOAD(self):
-        self.apdu["OAD"] = {}
-        self.apdu["OAD"]["OI"] = self.user_data[3:5]
-        self.apdu["OAD"]["propID"] = self.user_data[5]
-        self.apdu["OAD"]["propIndex"] = self.user_data[6]
-        return self.apdu["OAD"]
+        app_type = int(self.user_data[0], 16)
+        if app_type in [5, 6, 133, 134]:
+            self.apdu["OAD"] = {}
+            self.apdu["OAD"]["OI"] = self.user_data[3:5]
+            self.apdu["OAD"]["propID"] = self.user_data[5]
+            self.apdu["OAD"]["propIndex"] = self.user_data[6]
+            return self.apdu["OAD"]
+        elif app_type in [7, 135]:
+            self.apdu["OMD"] = {}
+            self.apdu["OMD"]["OI"] = self.user_data[3:5]
+            self.apdu["OMD"]["methodID"] = self.user_data[5]
+            self.apdu["OMD"]["opMode"] = self.user_data[6]
+            return self.apdu["OMD"]
 
     def getDataRelatedWithOAD(self):
-        # 获取用户数据中操作OAD相关的数据信息
+        # 获取用户数据中操作OAD,OMD,相关的数据信息
         # 如 GET-Request data为空，GET-Response为抄读数据，SET-Request为设置数据
         # Set-response为执行结果
-        if int(self.user_data[0], 16) >= 130:
+        app_type = int(self.user_data[0], 16)
+        if app_type in [133, 134]:
             self.apdu["dataRelatedWithOAD"] = self.user_data[7:-2]
-        else:
+            return self.apdu["dataRelatedWithOAD"]
+        elif app_type in [135]:
+            self.apdu["dataRelatedWithOMD"] = self.user_data[7:-2]
+            return self.apdu["dataRelatedWithOMD"]
+        elif app_type in [5, 6]:
             self.apdu["dataRelatedWithOAD"] = self.user_data[7:-1]
-        return self.apdu["dataRelatedWithOAD"]
+            return self.apdu["dataRelatedWithOAD"]
+        elif app_type in [7]:
+            self.apdu["dataRelatedWithOMD"] = self.user_data[7:-1]
+            return self.apdu["dataRelatedWithOMD"]
 
     def getObjectInfo(self):
         self.apdu["object"] = {}
@@ -133,6 +152,13 @@ class App:
                 self.apdu["object"]["setValue"] = (
                         DATA_PATTERN[self.apdu["object"]["dataType"]](
                                     self.apdu["dataRelatedWithOAD"][1::]))
+        # 07-ACTION-Request
+        elif self.user_data[0] == "07":
+            if self.user_data[1] == "01":
+                self.apdu["object"]["dataType"] = self.apdu["dataRelatedWithOMD"][0]
+                self.apdu["object"]["setValue"] = (
+                        DATA_PATTERN[self.apdu["object"]["dataType"]](
+                                    self.apdu["dataRelatedWithOMD"][1::]))
         # 0x85-GET-Response
         elif self.user_data[0] == "85":
             if self.user_data[1] == "01":
@@ -150,6 +176,14 @@ class App:
         elif self.user_data[0] == "86":
             if self.user_data[1] == "01":
                 self.apdu["object"]["result"] = DAR[self.apdu["dataRelatedWithOAD"][0]]
+        # 0x87-ACTION-Response
+        elif self.user_data[0] == "87":
+            if self.user_data[1] == "01":
+                self.apdu["object"]["result"] = DAR[self.apdu["dataRelatedWithOMD"][0]]
+                self.apdu["object"]["dataType"] = self.apdu["dataRelatedWithOMD"][1]
+                self.apdu["object"]["value"] = (
+                        DATA_PATTERN[self.apdu["object"]["dataType"]](
+                            self.apdu["dataRelatedWithOMD"][2::]))
         return self.apdu["object"]
 
 
