@@ -5,6 +5,7 @@
 应用层： 只允许于数据链路层通信，不允许直接调用物理层接口
 """
 import ctypes
+import pprint
 
 from datalink import *
 
@@ -31,38 +32,65 @@ def double_long(data):
 
 def visible_string(data):
     tem = []
-    for i in data[1::]:
-        if not i == "00":
-            tem.append(chr(int(i,16)))
+    for i in data:
+        tem.append(chr(int(i,16)))
     return "".join(tem)
 
-def octet_string(data):
-    return {
-        "len": int(data[0], 16),
-        "val": " ".join(data[1::])
-    }
-
 def date_time_s(data):
-    return "%s-%s-%s %s-%s-%s" % ("{0:04}".format(int("".join(data[0:2]), 16)),
+    return "%s-%s-%s %s:%s:%s" % ("{0:04}".format(int("".join(data[0:2]), 16)),
                                   "{0:02}".format(int(data[2], 16)),
                                   "{0:02}".format(int(data[3], 16)),
                                   "{0:02}".format(int(data[4], 16)),
                                   "{0:02}".format(int(data[5], 16)),
                                   "{0:02}".format(int(data[6], 16)))
 
+def oad(data):
+    return "OI:{}, propID:{}, index:{}".format(data[0:2],
+                                               data[2],
+                                               data[3])
+
 DATA_PATTERN = {
     "00": lambda n: "null",
     # "02": structure,
-    "04": lambda n: "{0:b}".format(int(n[1], 16)),
+    "04": lambda n: "{:08b}".format(int("".join(n), 16)),
     "05": double_long,
     "06": lambda n: int("".join(n[:]), 16),
-    "09": octet_string,
+    "09": lambda n: " ".join(n),
     "0A": visible_string,
-    "11": lambda n: int(n[0], 16),
+    "11": lambda n: int(n, 16),
     "12": lambda n: int("".join(n[:]), 16),
-    "16": lambda n: int(n[0], 16),
+    "16": lambda n: int(n, 16),
     "1C": date_time_s,
+    "51": oad,
 }
+
+DECODE_DATA = []
+def decode(data):
+    # print(">>{}".format(DECODE_DATA))
+    if len(data) == 0:
+        return
+    if data[0] in ["01", "02"]:
+        return decode(data[2::])
+    elif data[0] in ["04"]:
+        num = int(data[1], 16) // 8
+        DECODE_DATA.append(DATA_PATTERN[data[0]](data[2: (2 + num)]))
+        return decode(data[(2 + num)::])
+    elif data[0] in ["06", "05", "51"]:
+        DECODE_DATA.append(DATA_PATTERN[data[0]](data[1:5]))
+        return decode(data[5::])
+    elif data[0] in ["09", "0A"]:
+        num = int(data[1], 16)
+        DECODE_DATA.append(DATA_PATTERN[data[0]](data[2: (2 + num)]))
+        return decode(data[(2 + num)::])
+    elif data[0] in ["11", "16"]:
+        DECODE_DATA.append(DATA_PATTERN[data[0]](data[1]))
+        return decode(data[2::])
+    elif data[0] in ["10", "12"]:
+        DECODE_DATA.append(DATA_PATTERN[data[0]](data[1:3]))
+        return decode(data[3::])
+    elif data[0] == "1C":
+        DECODE_DATA.append(DATA_PATTERN[data[0]](data[1:8]))
+        return decode(data[8::])
 
 class App:
     def __init__(self):
@@ -140,6 +168,7 @@ class App:
             return self.apdu["dataRelatedWithOMD"]
 
     def getObjectInfo(self):
+        global DECODE_DATA
         self.apdu["object"] = {}
         # 05-GET-Request
         if self.user_data[0] == "05":
@@ -165,10 +194,9 @@ class App:
                 self.apdu["object"]["result"] = self.apdu["dataRelatedWithOAD"][0]
                 # 01- Data 成功抄读
                 if self.apdu["object"]["result"] == "01":
-                    self.apdu["object"]["dataType"] = self.apdu["dataRelatedWithOAD"][1]
-                    self.apdu["object"]["value"] = (
-                            DATA_PATTERN[self.apdu["object"]["dataType"]](
-                                self.apdu["dataRelatedWithOAD"][2::]))
+                    DECODE_DATA = []
+                    decode(self.apdu["dataRelatedWithOAD"][1::])
+                    self.apdu["object"]["value"] = DECODE_DATA
                 # 00- DAR 返回错误信息
                 elif self.apdu["object"]["result"] == "00":
                     self.apdu["object"]["error"] = DAR[self.apdu["dataRelatedWithOAD"][1]]
@@ -205,8 +233,9 @@ def test():
         app.getDataRelatedWithOAD()
         app.getObjectInfo()
         print("APDU解析信息>>")
-        for k,v in app.apdu.items():
-            print("%s: %s" % (k, v))
+        pp = pprint.PrettyPrinter(indent=4, depth=3)
+        pp.pprint(app.apdu)
+        # print("解析数据项目数: {}".format(len(app.apdu["object"]["value"])))
         app.resetApdu()
 
 if __name__ == '__main__':
