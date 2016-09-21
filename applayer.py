@@ -20,6 +20,7 @@ APDU_TYPE = {
 
 DAR = {
     "00": "00--成功",
+    "02": "02-暂时失效",
     "03": "03--拒绝读写",
     "04": "04--对象未定义",
     "FF": "FF--其他"
@@ -91,6 +92,9 @@ def decode(data):
     elif data[0] == "1C":
         DECODE_DATA.append(DATA_PATTERN[data[0]](data[1:8]))
         return decode(data[8::])
+    elif data[0] == "00":
+        DECODE_DATA.append(DATA_PATTERN[data[0]](data[0]))
+        return decode(data[1::])
 
 class App:
     def __init__(self):
