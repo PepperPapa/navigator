@@ -46,7 +46,7 @@ def date_time_s(data):
                                   "{0:02}".format(int(data[6], 16)))
 
 def oad(data):
-    return "OI:{}, propID:{}, index:{}".format(data[0:2],
+    return "OI-{}, propID-{}, index-{}".format("".join(data[0:2]),
                                                data[2],
                                                data[3])
 
@@ -112,6 +112,14 @@ class App:
 
     def getUserData(self):
         self.user_data = self.frame["data"]
+        """app_type: 5-读取请求 6-设置请求 7-操作请求 8-上报应答
+                    133-读取响应 134-设置响应 135-操作响应
+        """
+        self.app_type = int(self.user_data[0], 16)
+        """data_type: *Normal *NormalList *Record *RecordList
+                     *Next
+        """
+        self.data_type = int(self.user_data[1], 16)
         return self.user_data
 
     def getAPDUType(self):
@@ -125,10 +133,11 @@ class App:
 
     def getDataUnitType(self):
         # TIP: 前提是先运行getAPDUType方法
-        if self.user_data[1] == "01":
-            self.apdu["dataUnitType"] = "%s--%sNormal" % (self.user_data[1],
-                                                self.apdu["service"][4::])
-            return self.apdu["dataUnitType"]
+        type = {"01": "Normal", "05": "Next"}
+        self.apdu["dataUnitType"] = "%s--%s%s" % (self.user_data[1],
+                                          self.apdu["service"][4::],
+                                          type[self.user_data[1]])
+        return self.apdu["dataUnitType"]
 
     def getPIID(self):
         if int(self.user_data[0], 16) >= 130:
@@ -139,14 +148,19 @@ class App:
             return self.apdu["PPID"]
 
     def getOAD(self):
-        app_type = int(self.user_data[0], 16)
-        if app_type in [5, 6, 133, 134]:
+        if self.app_type in [5, 6, 133, 134]:
             self.apdu["OAD"] = {}
-            self.apdu["OAD"]["OI"] = self.user_data[3:5]
-            self.apdu["OAD"]["propID"] = self.user_data[5]
-            self.apdu["OAD"]["propIndex"] = self.user_data[6]
+            if self.data_type in [1]:
+                self.apdu["OAD"]["OI"] = self.user_data[3:5]
+                self.apdu["OAD"]["propID"] = self.user_data[5]
+                self.apdu["OAD"]["propIndex"] = self.user_data[6]
+            # TODO: zx 产品实现还存在问题，临时代码
+            elif self.data_type in [5]:
+                self.apdu["OAD"]["OI"] = self.user_data[6:8]
+                self.apdu["OAD"]["propID"] = self.user_data[8]
+                self.apdu["OAD"]["propIndex"] = self.user_data[9]
             return self.apdu["OAD"]
-        elif app_type in [7, 135]:
+        elif self.app_type in [7, 135]:
             self.apdu["OMD"] = {}
             self.apdu["OMD"]["OI"] = self.user_data[3:5]
             self.apdu["OMD"]["methodID"] = self.user_data[5]
@@ -157,17 +171,22 @@ class App:
         # 获取用户数据中操作OAD,OMD,相关的数据信息
         # 如 GET-Request data为空，GET-Response为抄读数据，SET-Request为设置数据
         # Set-response为执行结果
-        app_type = int(self.user_data[0], 16)
-        if app_type in [133, 134]:
-            self.apdu["dataRelatedWithOAD"] = self.user_data[7:-2]
+        if self.app_type in [133, 134]:
+            if self.data_type == 5:
+                self.apdu["dataRelatedWithOAD"] = self.user_data[10:-2]
+            else:
+                self.apdu["dataRelatedWithOAD"] = self.user_data[7:-2]
             return self.apdu["dataRelatedWithOAD"]
-        elif app_type in [135]:
+        elif self.app_type in [135]:
             self.apdu["dataRelatedWithOMD"] = self.user_data[7:-2]
             return self.apdu["dataRelatedWithOMD"]
-        elif app_type in [5, 6]:
-            self.apdu["dataRelatedWithOAD"] = self.user_data[7:-1]
+        elif self.app_type in [5, 6]:
+            if self.data_type == 5:
+                self.apdu["dataRelatedWithOAD"] = self.user_data[10:-2]
+            else:
+                self.apdu["dataRelatedWithOAD"] = self.user_data[7:-1]
             return self.apdu["dataRelatedWithOAD"]
-        elif app_type in [7]:
+        elif self.app_type in [7]:
             self.apdu["dataRelatedWithOMD"] = self.user_data[7:-1]
             return self.apdu["dataRelatedWithOMD"]
 
@@ -194,7 +213,7 @@ class App:
                                     self.apdu["dataRelatedWithOMD"][1::]))
         # 0x85-GET-Response
         elif self.user_data[0] == "85":
-            if self.user_data[1] == "01":
+            if self.user_data[1] in ["01", "05"]:
                 self.apdu["object"]["result"] = self.apdu["dataRelatedWithOAD"][0]
                 # 01- Data 成功抄读
                 if self.apdu["object"]["result"] == "01":
@@ -204,6 +223,10 @@ class App:
                 # 00- DAR 返回错误信息
                 elif self.apdu["object"]["result"] == "00":
                     self.apdu["object"]["error"] = DAR[self.apdu["dataRelatedWithOAD"][1]]
+
+                # TODO: 临时代码，目前产品实现还有问题，待产品实现正确后再更新
+                if self.user_data[1] == "05":
+                    self.apdu["segment"] = self.user_data[3:6]
         # 0x86-SET-Response
         elif self.user_data[0] == "86":
             if self.user_data[1] == "01":
