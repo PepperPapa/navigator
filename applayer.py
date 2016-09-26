@@ -8,6 +8,9 @@ import ctypes
 import pprint
 
 from datalink import *
+OI_COLLECTIONS = {
+
+}
 
 APDU_TYPE = {
     "05": "GetRequest",
@@ -26,6 +29,11 @@ DAR = {
     "FF": "FF--其他"
 }
 
+def long(data):
+    tem = int("".join(data), 16)
+    tem = ctypes.c_long(tem).value
+    return tem
+
 def double_long(data):
     tem = int("".join(data), 16)
     tem = ctypes.c_long(tem).value
@@ -34,9 +42,17 @@ def double_long(data):
 def visible_string(data):
     tem = []
     for i in data:
-        tem.append(chr(int(i,16)))
+        if i == "00":
+            tem.append(" ")
+        else:
+            tem.append(chr(int(i,16)))
     return "".join(tem)
 
+def date(data):
+    return "%s-%s-%s %s" % ("{0:04}".format(int("".join(data[0:2]), 16)),
+                                  "{0:02}".format(int(data[2], 16)),
+                                  "{0:02}".format(int(data[3], 16)),
+                                  "{0:02}".format(int(data[4], 16)))
 def date_time_s(data):
     return "%s-%s-%s %s:%s:%s" % ("{0:04}".format(int("".join(data[0:2]), 16)),
                                   "{0:02}".format(int(data[2], 16)),
@@ -49,20 +65,30 @@ def oad(data):
     return "OI-{}, propID-{}, index-{}".format("".join(data[0:2]),
                                                data[2],
                                                data[3])
+def COMDCB(data):
+    return {
+        "bandrate": int(data[0], 16),
+        "parity": int(data[1], 16),
+        "bytesize": int(data[2], 16),
+        "stopbits": int(data[3], 16),
+        "flowcontrol": int(data[4], 16)
+    }
 
 DATA_PATTERN = {
     "00": lambda n: "null",
-    # "02": structure,
     "04": lambda n: "{:08b}".format(int("".join(n), 16)),
     "05": double_long,
     "06": lambda n: int("".join(n[:]), 16),
     "09": lambda n: " ".join(n),
     "0A": visible_string,
+    "10": long,
     "11": lambda n: int(n, 16),
     "12": lambda n: int("".join(n[:]), 16),
     "16": lambda n: int(n, 16),
+    "1A": date,
     "1C": date_time_s,
     "51": oad,
+    "5F": COMDCB,
 }
 
 DECODE_DATA = []
@@ -92,6 +118,9 @@ def decode(data):
     elif data[0] == "1C":
         DECODE_DATA.append(DATA_PATTERN[data[0]](data[1:8]))
         return decode(data[8::])
+    elif data[0] in ["1A", "5F"]:
+        DECODE_DATA.append(DATA_PATTERN[data[0]](data[1:6]))
+        return decode(data[6::])
     elif data[0] == "00":
         DECODE_DATA.append(DATA_PATTERN[data[0]](data[0]))
         return decode(data[1::])
@@ -155,7 +184,7 @@ class App:
                 self.apdu["OAD"]["propID"] = self.user_data[5]
                 self.apdu["OAD"]["propIndex"] = self.user_data[6]
             # TODO: zx 产品实现还存在问题，临时代码
-            elif self.data_type in [5]:
+            elif self.data_type == 5 and self.app_type == 133:
                 self.apdu["OAD"]["OI"] = self.user_data[6:8]
                 self.apdu["OAD"]["propID"] = self.user_data[8]
                 self.apdu["OAD"]["propIndex"] = self.user_data[9]
@@ -182,7 +211,7 @@ class App:
             return self.apdu["dataRelatedWithOMD"]
         elif self.app_type in [5, 6]:
             if self.data_type == 5:
-                self.apdu["dataRelatedWithOAD"] = self.user_data[10:-2]
+                self.apdu["dataRelatedWithOAD"] = []
             else:
                 self.apdu["dataRelatedWithOAD"] = self.user_data[7:-1]
             return self.apdu["dataRelatedWithOAD"]
@@ -197,13 +226,14 @@ class App:
         if self.user_data[0] == "05":
             if self.user_data[1] == "01":
                 self.apdu["object"] = {}
+            elif self.user_data[1] == "05":
+                self.apdu["segment_id"] = int("".join(self.user_data[3:5]), 16)
         # 06-SET-Request
         elif self.user_data[0] == "06":
             if self.user_data[1] == "01":
-                self.apdu["object"]["dataType"] = self.apdu["dataRelatedWithOAD"][0]
-                self.apdu["object"]["setValue"] = (
-                        DATA_PATTERN[self.apdu["object"]["dataType"]](
-                                    self.apdu["dataRelatedWithOAD"][1::]))
+                DECODE_DATA = []
+                decode(self.apdu["dataRelatedWithOAD"])
+                self.apdu["object"]["setValue"] = DECODE_DATA
         # 07-ACTION-Request
         elif self.user_data[0] == "07":
             if self.user_data[1] == "01":
@@ -260,7 +290,7 @@ def test():
         app.getDataRelatedWithOAD()
         app.getObjectInfo()
         print("APDU解析信息>>")
-        pp = pprint.PrettyPrinter(indent=4, depth=3)
+        pp = pprint.PrettyPrinter(indent=4)
         pp.pprint(app.apdu)
         # print("解析数据项目数: {}".format(len(app.apdu["object"]["value"])))
         app.resetApdu()
