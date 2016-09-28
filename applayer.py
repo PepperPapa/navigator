@@ -47,6 +47,7 @@ def visible_string(data):
         else:
             tem.append(chr(int(i,16)))
     return "".join(tem)
+    # return "".join(data)
 
 def date(data):
     return "%s-%s-%s %s" % ("{0:04}".format(int("".join(data[0:2]), 16)),
@@ -162,7 +163,7 @@ class App:
 
     def getDataUnitType(self):
         # TIP: 前提是先运行getAPDUType方法
-        type = {"01": "Normal", "05": "Next"}
+        type = {"01": "Normal", "03": "Record", "05": "Next"}
         self.apdu["dataUnitType"] = "%s--%s%s" % (self.user_data[1],
                                           self.apdu["service"][4::],
                                           type[self.user_data[1]])
@@ -179,7 +180,7 @@ class App:
     def getOAD(self):
         if self.app_type in [5, 6, 133, 134]:
             self.apdu["OAD"] = {}
-            if self.data_type in [1]:
+            if self.data_type in [1, 3]:
                 self.apdu["OAD"]["OI"] = self.user_data[3:5]
                 self.apdu["OAD"]["propID"] = self.user_data[5]
                 self.apdu["OAD"]["propIndex"] = self.user_data[6]
@@ -195,6 +196,17 @@ class App:
             self.apdu["OMD"]["methodID"] = self.user_data[5]
             self.apdu["OMD"]["opMode"] = self.user_data[6]
             return self.apdu["OMD"]
+
+    def getRCSD(self, data):
+        num = int(data[0], 16)
+        index = 1
+        self.apdu["RCSD"] = []
+        for i in range(num):
+            if data[index] == "00":
+                item = oad(data[(index + 1):(index + 5)])
+                self.apdu["RCSD"].append("00(OAD)--{}".format(item))
+                index += 5
+        return data[index::]
 
     def getDataRelatedWithOAD(self):
         # 获取用户数据中操作OAD,OMD,相关的数据信息
@@ -244,27 +256,41 @@ class App:
         # 0x85-GET-Response
         elif self.user_data[0] == "85":
             if self.user_data[1] in ["01", "05"]:
-                self.apdu["object"]["result"] = self.apdu["dataRelatedWithOAD"][0]
+                self.apdu["object"]["choice"] = self.apdu["dataRelatedWithOAD"][0]
                 # 01- Data 成功抄读
-                if self.apdu["object"]["result"] == "01":
+                if self.apdu["object"]["choice"] == "01":
                     DECODE_DATA = []
                     decode(self.apdu["dataRelatedWithOAD"][1::])
                     self.apdu["object"]["value"] = DECODE_DATA
                 # 00- DAR 返回错误信息
-                elif self.apdu["object"]["result"] == "00":
+                elif self.apdu["object"]["choice"] == "00":
                     self.apdu["object"]["error"] = DAR[self.apdu["dataRelatedWithOAD"][1]]
 
                 # TODO: 临时代码，目前产品实现还有问题，待产品实现正确后再更新
                 if self.user_data[1] == "05":
                     self.apdu["segment"] = self.user_data[3:6]
+
+            if self.user_data[1] in ["03"]:
+                self.apdu["dataRelatedWithOAD"] = self.getRCSD(self.apdu["dataRelatedWithOAD"])
+                self.apdu["object"]["choice"] = self.apdu["dataRelatedWithOAD"][0]
+                # 01- Data 成功抄读
+                if self.apdu["object"]["choice"] == "01":
+                    self.apdu["object"]["recordNum"] = int(self.apdu["dataRelatedWithOAD"][1], 16)
+                    DECODE_DATA = []
+                    decode(self.apdu["dataRelatedWithOAD"][2::])
+                    self.apdu["object"]["value"] = DECODE_DATA
+                # 00- DAR 返回错误信息
+                elif self.apdu["object"]["choice"] == "00":
+                    self.apdu["object"]["error"] = DAR[self.apdu["dataRelatedWithOAD"][1]]
+
         # 0x86-SET-Response
         elif self.user_data[0] == "86":
             if self.user_data[1] == "01":
-                self.apdu["object"]["result"] = DAR[self.apdu["dataRelatedWithOAD"][0]]
+                self.apdu["object"]["choice"] = DAR[self.apdu["dataRelatedWithOAD"][0]]
         # 0x87-ACTION-Response
         elif self.user_data[0] == "87":
             if self.user_data[1] == "01":
-                self.apdu["object"]["result"] = DAR[self.apdu["dataRelatedWithOMD"][0]]
+                self.apdu["object"]["choice"] = DAR[self.apdu["dataRelatedWithOMD"][0]]
                 self.apdu["object"]["dataType"] = self.apdu["dataRelatedWithOMD"][1]
                 self.apdu["object"]["value"] = (
                         DATA_PATTERN[self.apdu["object"]["dataType"]](
