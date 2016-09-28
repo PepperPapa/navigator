@@ -31,12 +31,12 @@ DAR = {
 
 def long(data):
     tem = int("".join(data), 16)
-    tem = ctypes.c_long(tem).value
+    tem = ctypes.c_int16(tem).value
     return tem
 
 def double_long(data):
     tem = int("".join(data), 16)
-    tem = ctypes.c_long(tem).value
+    tem = ctypes.c_int32(tem).value
     return tem
 
 def visible_string(data):
