@@ -122,6 +122,12 @@ def decode(data):
     elif data[0] in ["1A", "5F"]:
         DECODE_DATA.append(DATA_PATTERN[data[0]](data[1:6]))
         return decode(data[6::])
+    elif data[0] in ["5B"]:
+        if data[1] == "00":
+            DECODE_DATA.append(oad(data[2:6]))
+            return decode(data[6::])
+        else:
+            pass
     elif data[0] == "00":
         DECODE_DATA.append(DATA_PATTERN[data[0]](data[0]))
         return decode(data[1::])
