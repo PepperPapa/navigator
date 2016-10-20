@@ -82,8 +82,8 @@ class Nav():
                      {"label": "运行脚本", "cmd": self.runScript}
                     ]
              },
-            {"帮助": [{"label": "关于", "cmd": self.pending},
-                     {"label": "帮助", "cmd": self.pending}
+            {"帮助": [{"label": "关于", "cmd": self.about},
+                     {"label": "帮助", "cmd": self.help}
                      ]
              }
         )
@@ -149,8 +149,34 @@ class Nav():
     def makePopupMenu(self, event):
         self.popup.post(event.x_root, event.y_root)
 
-    def pending(self, *event):
-        print("in pending...")
+    def help(self, *event):
+        print("""
+        支持命令方式和脚本方式执行，脚本方式使用python语言。
+        1.支持命令如下：
+        :get-energy d0d1d2d3 --抄读电量
+        :get-demand d0d1d2d3 --抄读需量
+        :get-time 04000102 --抄读时间
+        :set-time 04000102 hhmmss  --设置时间
+        :get-date 04000101 --抄读日期
+        :set-date 04000101 yymmddww --设置日期
+        :get-cycle-display d0d1d2d3 --抄读循显和键显参数
+        :set-cycle-display d0d1d2d3 d0d1d2d3,NN  --设置循显和键显参数
+        :get-load-curve d0d1d2d3 add-xx --抄读负荷曲线
+        :get-addr --抄读通信地址
+        68 xx xx xx xx xx xx 68 ... 16 --原始帧，针对暂未封装的功能或非标扩展的功能
+        2.脚本方式运行：
+        psend("封装命令或原始帧")
+        如:
+          psend("get-addr")
+          psend("68 00 00 00 00 00 00 68 11 04 34 34 37 37 BB 16")
+        """)
+
+    def about(self, *event):
+        print("""
+        navigator:基于dl645-2007协议的电能表轻量级自动化测试工具
+        作者：钟鑫
+        联系方式：zhongxin2506@outlook.com
+        """)
 
     def updateInsertPos(self, *event):
         self.insertCursorPos.set(':'.join(self.inputText.index(INSERT).split('.')))
