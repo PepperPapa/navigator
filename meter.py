@@ -1,4 +1,4 @@
-# !/usr/bin/python3.4
+﻿# !/usr/bin/python3.4
 
 import re
 import math
@@ -95,7 +95,7 @@ class Meter():
     def __init__(self, matchCmd = {}, cmdin = ""):
         self.protocol = matchCmd
         # 密码 PA PA0 PA1 P2
-        self.pwd = "04000000"
+        self.pwd = "04222222"
         # 操作者代码
         self.opcode = "01000000"
         # 后续帧的帧序号
