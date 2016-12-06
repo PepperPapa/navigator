@@ -11,7 +11,7 @@ TARIFF_GOV = [5, 5, 5, 5, 0, 0, 0, 0, 0, 0]
 TARIFF_VAT = [17.5, 17.5, 17.5, 17.5, 0, 0, 0, 0, 0, 0]
 
 NUM_STEPS = 4
-STEPS = [50, 150, 300, 600, 0, 0, 0, 0]
+STEPS = [0.5, 1.5, 3, 6, 0, 0, 0, 0]
 TARIFF_STEPS = [0.3356, 0.6733, 0.6733, 0.8738, 0.9709, 0, 0, 0, 0]
 MENU = """
 0: 显示帮助
@@ -76,7 +76,6 @@ class Ghana:
         U = self.energy[1]
         if index_step == 0:
             self.cum["energy_charge"] = (U * self.tariff_steps[index_step])
-            print(self.cum)
         else:
             pre_step = self.steps[index_step - 1]
             self.cum["energy_charge"] = ((U - pre_step) * self.tariff_steps[index_step])
@@ -112,5 +111,9 @@ if __name__ == '__main__':
             pp.pprint(gn.consume())
         if cmd == "4":
             pp.pprint("当前运行阶梯序号: %s" % gn.currentStep(gn.energy[1]))
+
         if cmd == "exit":
             break
+        else:
+            # 这里用于输入计算公式，未做校验，如 2+3*8
+            print(eval(cmd))
