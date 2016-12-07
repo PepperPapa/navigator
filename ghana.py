@@ -4,14 +4,14 @@ python 3.5
 """
 import pprint
 
-CHARGE_SERVICE = [2.1333, 6.3317, 6.3317, 6.3317, 0, 0, 0, 0, 0, 0]
+CHARGE_SERVICE = [2.1333, 6.3317, 6.3317, 6.3317, 6.3317, 6.3317, 6.3317, 6.3317, 6.3317, 6.3317]
 # 百分比
-TARIFF_ROADLIGHT = [5, 5, 5, 5, 0, 0, 0, 0, 0, 0]
-TARIFF_GOV = [5, 5, 5, 5, 0, 0, 0, 0, 0, 0]
+TARIFF_ROADLIGHT = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+TARIFF_GOV = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
 TARIFF_VAT = [17.5, 17.5, 17.5, 17.5, 0, 0, 0, 0, 0, 0]
 
 NUM_STEPS = 4
-STEPS = [0.5, 1.5, 3, 6, 0, 0, 0, 0]
+STEPS = [50, 150, 300, 600, 0, 0, 0, 0]
 TARIFF_STEPS = [0.3356, 0.6733, 0.6733, 0.8738, 0.9709, 0, 0, 0, 0]
 MENU = """
 0: 显示帮助
@@ -19,6 +19,7 @@ MENU = """
 2: 更新或查询剩余金额
 3: 计算扣费
 4: 查询当前运行的阶梯
+5: 设置新阶梯值
 exit: 退出程序
 """
 
@@ -46,6 +47,9 @@ class Ghana:
         self.energy = []
         self.money = []
 
+    def set_steps(self, new_steps):
+        self.steps = new_steps
+        
     def eng(self, *energy):
         self.energy = push(self.energy, *energy)
         return self.energy
@@ -81,14 +85,9 @@ class Ghana:
             self.cum["energy_charge"] = ((U - pre_step) * self.tariff_steps[index_step])
             self._preStepConsume(index_step - 1)
 
-        if index_step >= self.num_steps - 1:
-            price_gov = self.tariff_gov[index_step - 1] / 100
-            price_roadlight = self.tariff_roadlight[index_step - 1] / 100
-            charge_service = self.charge_service[index_step - 1]
-        else:
-            price_gov = self.tariff_gov[index_step] / 100
-            price_roadlight = self.tariff_roadlight[index_step] / 100
-            charge_service = self.charge_service[index_step]
+        price_gov = self.tariff_gov[index_step] / 100
+        price_roadlight = self.tariff_roadlight[index_step] / 100
+        charge_service = self.charge_service[index_step]
         self.cum["service_charge"] = charge_service
         self.cum["gov_tax"] = (self.cum["energy_charge"] * price_gov)
         self.cum["roadlight_tax"] = (self.cum["energy_charge"] * price_roadlight)
@@ -103,17 +102,24 @@ if __name__ == '__main__':
         cmd = input(">>> ")
         if cmd == "0":
             print(MENU)
-        if cmd == "1":
+        elif cmd == "1":
             pp.pprint(gn.eng(innum("更新电量|回车: ")))
-        if cmd == "2":
+        elif cmd == "2":
             pp.pprint(gn.mon(innum("更新剩余金额|回车: ")))
-        if cmd == "3":
+        elif cmd == "3":
             pp.pprint(gn.consume())
-        if cmd == "4":
+        elif cmd == "4":
             pp.pprint("当前运行阶梯序号: %s" % gn.currentStep(gn.energy[1]))
-
-        if cmd == "exit":
+        elif cmd == "5":
+            new_steps = input()
+            if len(new_steps) > 0:
+                new_steps = new_steps.split(' ')
+                new_steps = [float(v) for v in new_steps]
+                gn.set_steps(new_steps)
+            pp.pprint(gn.steps)
+        elif cmd == "exit":
             break
         else:
             # 这里用于输入计算公式，未做校验，如 2+3*8
-            print(eval(cmd))
+            if len(cmd) > 0:
+                print(eval(cmd))
