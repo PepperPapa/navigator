@@ -13,7 +13,7 @@ TARIFF_GOV = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
 TARIFF_VAT = [17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5]
 
 NUM_STEPS = 2
-STEPS = [300, 600, 300, 600, 0, 0, 0, 0]
+STEPS = [3, 6, 300, 600, 0, 0, 0, 0]
 # TARIFF_STEPS = [0.3356, 0.6733, 0.6733, 0.8738, 0.9709, 0, 0, 0, 0]
 TARIFF_STEPS = [0.9679, 1.0300, 1.6251]
 TARIFF_SUBSIDY = [0.0498, 0.0265, 0.0209, 0.0209, 0.0209, 0.0209, 0.0209, 0.0209, 0.0209, 0.0209]
@@ -88,7 +88,6 @@ class Ghana:
         return i + 1
 
     def _preStepConsume(self, index_step):
-        print(self.cum)
         if index_step == 0:
             self.cum["energy_charge"] += self.steps[0] * self.tariff_steps[0]
              # VAT税
