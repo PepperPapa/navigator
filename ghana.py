@@ -1,4 +1,4 @@
-"""
+﻿"""
 python 3.5
 加纳表扣费模块
 """
@@ -6,16 +6,20 @@ import pprint
 
 CONSUME_MODE = '01'
 # CHARGE_SERVICE = [2.1333, 6.3317, 6.3317, 6.3317, 6.3317, 6.3317, 6.3317, 6.3317, 6.3317, 6.3317]
-CHARGE_SERVICE = [10.5529] * 8
+# CHARGE_SERVICE = [10.5529] * 8
+CHARGE_SERVICE = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90]
 # 百分比
-TARIFF_ROADLIGHT = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
-TARIFF_GOV = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
-TARIFF_VAT = [17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5]
+# TARIFF_ROADLIGHT = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+TARIFF_ROADLIGHT = [16.01, 9.22, 8.33, 7.44, 6.55, 5.66, 4.77, 3.88, 2.99, 1.00]
+# TARIFF_GOV = [5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+TARIFF_GOV = [1.00, 2.99, 3.88, 4.77, 5.66, 6.55, 7.44, 8.33, 9.22, 16.01]
+# TARIFF_VAT = [17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5, 17.5]
+TARIFF_VAT = [17.55, 17.55, 17.55, 17.55, 17.55, 17.55, 17.55, 17.55, 17.55, 17.55]
 
-NUM_STEPS = 2
-STEPS = [3, 6, 300, 600, 0, 0, 0, 0]
-# TARIFF_STEPS = [0.3356, 0.6733, 0.6733, 0.8738, 0.9709, 0, 0, 0, 0]
-TARIFF_STEPS = [0.9679, 1.0300, 1.6251]
+NUM_STEPS = 9
+STEPS = [1, 3, 5, 7, 10, 12, 16, 23, 26]
+# TARIFF_STEPS = [0.3356, 0.6733, 0.6733, 0.8739, 0.9709, 0, 0, 0, 0]
+TARIFF_STEPS = [0.9679, 1.0300, 1.6251, 2.3341, 5.5562, 6.3325, 6.3325, 6.3325, 1.2256, 1.2256]
 TARIFF_SUBSIDY = [0.0498, 0.0265, 0.0209, 0.0209, 0.0209, 0.0209, 0.0209, 0.0209, 0.0209, 0.0209]
 MENU = """
 0: 显示帮助
@@ -90,51 +94,100 @@ class Ghana:
     def _preStepConsume(self, index_step):
         if index_step == 0:
             self.cum["energy_charge"] += self.steps[0] * self.tariff_steps[0]
-             # VAT税
+             # 政府税
+            price_gov = self.tariff_gov[index_step] / 100
+            self.cum["gov_tax"] += (self.cum["energy_charge"] * price_gov)
+
+            # 路灯税
+            price_roadlight = self.tariff_roadlight[index_step] / 100
+            self.cum["roadlight_tax"] += (self.cum["energy_charge"] * price_roadlight)
+
+
+            # 阶梯服务费
+            charge_service = self.charge_service[index_step]
+            self.cum["service_charge"] += charge_service            
+
+            # VAT税
             if self.consume_mode == "01":
-                self.cum["vat_charge"] += ((self.tariff_steps[0] - self.tariff_subsidy[0]) * self.steps[0]
-                                           * self.tariff_vat[0] / 100)
+                self.cum["vat_tax"] = ((self.charge_service[index_step] +
+                                          (self.tariff_steps[index_step] - self.tariff_subsidy[index_step]) * (U - pre_step))
+                                           * (self.tariff_vat[index_step] / 100))
             return
         else:
             step_eng = self.steps[index_step] - self.steps[index_step - 1]
             self.cum["energy_charge"] += step_eng * self.tariff_steps[index_step]
-             # VAT税
+
+            # 政府税
+            price_gov = self.tariff_gov[index_step] / 100
+            self.cum["gov_tax"] += (self.cum["energy_charge"] * price_gov)
+
+            # 路灯税
+            price_roadlight = self.tariff_roadlight[index_step] / 100
+            self.cum["roadlight_tax"] += (self.cum["energy_charge"] * price_roadlight)
+
+
+            # 阶梯服务费
+            charge_service = self.charge_service[index_step]
+            self.cum["service_charge"] += charge_service            
+
+            # VAT税
             if self.consume_mode == "01":
-                self.cum["vat_charge"] += ((self.tariff_steps[index_step] - self.tariff_subsidy[index_step]) * step_eng
-                                           * self.tariff_vat[index_step] / 100)
-                print(self.cum)
+                self.cum["vat_tax"] = ((self.charge_service[index_step] +
+                                          (self.tariff_steps[index_step] - self.tariff_subsidy[index_step]) * (U - pre_step)) 
+                                           * (self.tariff_vat[index_step] / 100))
+
             self._preStepConsume(index_step - 1)
 
     def consume(self):
         self.cum = {"energy_charge": 0,
-                    "vat_charge": 0}
+                    "service_charge": 0,
+                    "gov_tax": 0,
+                    "roadlight_tax": 0,
+                    "vat_tax": 0}
         index_step = self.currentStep(self.energy[1])
         U = self.energy[1]
         if index_step == 0:
             self.cum["energy_charge"] = (U * self.tariff_steps[0])
             # VAT税
             if self.consume_mode == "01":
-                self.cum["vat_charge"] = ((self.charge_service[0] +
+                self.cum["vat_tax"] = ((self.charge_service[0] +
                                            (self.tariff_steps[0] - self.tariff_subsidy[0]) * U)
-                                           * self.tariff_vat[0] / 100)
+                                           * (self.tariff_vat[0] / 100))
+            price_gov = self.tariff_gov[index_step] / 100
+            price_roadlight = self.tariff_roadlight[index_step] / 100
+            charge_service = self.charge_service[index_step]
+            self.cum["service_charge"] = charge_service
+            self.cum["gov_tax"] = (self.cum["energy_charge"] * price_gov)
+            self.cum["roadlight_tax"] = (self.cum["energy_charge"] * price_roadlight)
+            self.cum["total"] = sum([v for k,v in self.cum.items()])
+            return self.cum
         else:
             pre_step = self.steps[index_step - 1]
             self.cum["energy_charge"] = ((U - pre_step) * self.tariff_steps[index_step])
+
+            # 政府税
+            price_gov = self.tariff_gov[index_step] / 100
+            self.cum["gov_tax"] = (self.cum["energy_charge"] * price_gov)
+
+            # 路灯税
+            price_roadlight = self.tariff_roadlight[index_step] / 100
+            self.cum["roadlight_tax"] = (self.cum["energy_charge"] * price_roadlight)
+
+
+            # 阶梯服务费
+            charge_service = self.charge_service[index_step]
+            self.cum["service_charge"] = charge_service            
+
             # VAT税
             if self.consume_mode == "01":
-                self.cum["vat_charge"] = ((self.charge_service[index_step] +
-                                           (self.tariff_steps[index_step] - self.tariff_subsidy[index_step]) * (U - pre_step))
-                                           * self.tariff_vat[index_step] / 100)
+                self.cum["vat_tax"] = ((self.charge_service[index_step] +
+                                          (self.tariff_steps[index_step] - self.tariff_subsidy[index_step]) * (U - pre_step))
+                                           * (self.tariff_vat[index_step] / 100))
+
             self._preStepConsume(index_step - 1)
 
-        price_gov = self.tariff_gov[index_step] / 100
-        price_roadlight = self.tariff_roadlight[index_step] / 100
-        charge_service = self.charge_service[index_step]
-        self.cum["service_charge"] = charge_service
-        self.cum["gov_tax"] = (self.cum["energy_charge"] * price_gov)
-        self.cum["roadlight_tax"] = (self.cum["energy_charge"] * price_roadlight)
-        self.cum["total"] = sum([v for k,v in self.cum.items()])
-        return self.cum
+            self.cum["total"] = sum([v for k,v in self.cum.items()])
+            return self.cum
 
 gn = Ghana()
 
