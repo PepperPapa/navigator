@@ -109,8 +109,8 @@ class Ghana:
 
             # VAT税
             if self.consume_mode == "01":
-                self.cum["vat_tax"] = ((self.charge_service[index_step] +
-                                          (self.tariff_steps[index_step] - self.tariff_subsidy[index_step]) * (U - pre_step))
+                self.cum["vat_tax"] += ((self.charge_service[index_step] +
+                                          (self.tariff_steps[index_step] - self.tariff_subsidy[index_step]) * self.steps[0])
                                            * (self.tariff_vat[index_step] / 100))
             return
         else:
@@ -132,7 +132,7 @@ class Ghana:
 
             # VAT税
             if self.consume_mode == "01":
-                self.cum["vat_tax"] = ((self.charge_service[index_step] +
+                self.cum["vat_tax"] += ((self.charge_service[index_step] +
                                           (self.tariff_steps[index_step] - self.tariff_subsidy[index_step]) * (U - pre_step)) 
                                            * (self.tariff_vat[index_step] / 100))
 
