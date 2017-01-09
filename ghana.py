@@ -94,13 +94,15 @@ class Ghana:
     def _preStepConsume(self, index_step):
         if index_step == 0:
             self.cum["energy_charge"] += self.steps[0] * self.tariff_steps[0]
+            eng_temp = self.steps[0] * self.tariff_steps[0]
+            
              # 政府税
             price_gov = self.tariff_gov[index_step] / 100
-            self.cum["gov_tax"] += (self.cum["energy_charge"] * price_gov)
+            self.cum["gov_tax"] += (eng_temp * price_gov)
 
             # 路灯税
             price_roadlight = self.tariff_roadlight[index_step] / 100
-            self.cum["roadlight_tax"] += (self.cum["energy_charge"] * price_roadlight)
+            self.cum["roadlight_tax"] += (eng_temp * price_roadlight)
 
 
             # 阶梯服务费
@@ -116,14 +118,15 @@ class Ghana:
         else:
             step_eng = self.steps[index_step] - self.steps[index_step - 1]
             self.cum["energy_charge"] += step_eng * self.tariff_steps[index_step]
+            eng_temp = step_eng * self.tariff_steps[index_step]
 
             # 政府税
             price_gov = self.tariff_gov[index_step] / 100
-            self.cum["gov_tax"] += (self.cum["energy_charge"] * price_gov)
+            self.cum["gov_tax"] += (eng_temp * price_gov)
 
             # 路灯税
             price_roadlight = self.tariff_roadlight[index_step] / 100
-            self.cum["roadlight_tax"] += (self.cum["energy_charge"] * price_roadlight)
+            self.cum["roadlight_tax"] += (eng_temp * price_roadlight)
 
 
             # 阶梯服务费
@@ -133,7 +136,7 @@ class Ghana:
             # VAT税
             if self.consume_mode == "01":
                 self.cum["vat_tax"] += ((self.charge_service[index_step] +
-                                          (self.tariff_steps[index_step] - self.tariff_subsidy[index_step]) * (U - pre_step)) 
+                                          (self.tariff_steps[index_step] - self.tariff_subsidy[index_step]) * step_eng) 
                                            * (self.tariff_vat[index_step] / 100))
 
             self._preStepConsume(index_step - 1)
@@ -172,7 +175,6 @@ class Ghana:
             # 路灯税
             price_roadlight = self.tariff_roadlight[index_step] / 100
             self.cum["roadlight_tax"] = (self.cum["energy_charge"] * price_roadlight)
-
 
             # 阶梯服务费
             charge_service = self.charge_service[index_step]
